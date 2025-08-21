@@ -26,3 +26,43 @@ def spring_damper(F, k, c, x0, v0, t):
         x[i] = x[i-1] + v[i]  dt
     return x
 
+    return x
+ 
+F = 10  (N)
+k = 1000    (N/m)
+c = 10    (Ns/m)
+t = np.linspace(0, 1, 100)   (s)
+  
+x = spring_damper(F, k, c, x0=0, v0=0, t=t)
+plt.plot(t, x)
+plt.title
+plt.xlabel (s)
+plt.ylabel(  (m)
+plt.grid()
+plt.show
+TensorFlow:
+python
+import tensorflow as tf
+import numpy as np
+
+
+X_data = np.random.rand(100, 2)   100 
+y_data = np.random.rand(100, 1)   
+140450140003002031/Nader.m
+model = tf.keras.Sequential([
+    tf.keras.layers.Dense(64, activation='relu', input_shape=(2,)),  
+    tf.keras.layers.Dense(64, activation=relu)
+    tf.keras.layers.Dense(1 activation=sigmoid')  
+])
+
+model.compile(optimizer=adam loss='mse', metrics=[accurac  مدل
+model.fit(X_data, y_data, epochs=100, batch_size=10)
+
+new_data = np.array([[0.5, 0.6]])      
+prediction = model.predict(new_data)
+print(f {prediction[0][0]:.2f})
+
+
+---
+
+
