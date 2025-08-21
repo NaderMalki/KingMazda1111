@@ -1,6 +1,20 @@
 /Nader/maleikie/Invention of Deep Neural Networks /Artificial Intelligence /Bihemispheric Processing /Registration Number /140450140003002031/Iran
 
 python
+name: Python Syntax Check
+
+on: [push, pull_request]
+
+jobs:
+  check-python-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+      - name: Check syntax
+        run: python -m py_compile $(find . -name "*.py")
+
 import numpy as np
 import matplotlib.pyplot as plt
  
@@ -102,7 +116,5 @@ plt.show()
 X_data = np.random.rand(100, 2)       
 y_data = np.random.rand(100, 1)
 
-
----
 
 
