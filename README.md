@@ -89,6 +89,7 @@ def test_network():
     print("تست با موفقیت انجام شد - بدون ارزیابی عملکرد")
 
 if __name__ == "__main__":
+
     test_network()
 
 # مصرف انرژی تقریبی:
@@ -98,5 +99,6 @@ if __name__ == "__main__":
 # پیچیدگی محاسباتی:
 # BiHemispheric: O(n) کاهش 57%
 # SimpleCNN: O(n) سنتی
-
+class CoordinatedDualHemisphere(nn.Module):
+def init(self, input_size=128, hidden_size=64, num_layers=2, num_classes=2, bidirectional=False, dropout=0.2, fc_dropout=0.2): super().__init__() self.bidirectional = bidirectional self.hidden_size = hidden_size self.num_layers = num_layers self.num_directions = 2 if bidirectional else 1 self.lstm_left = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=dropout, bidirectional=bidirectional) self.lstm_right = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=dropout, bidirectional=bidirectional) coord_in = hidden_size * self.num_directions * 2 self.fc_coordination = nn.Linear(coord_in, hidden_size) self.fc_dropout = nn.Dropout(fc_dropout) self.fc_output = nn.Linear(hidden_size, num_classes) self._init_weights() def _init_weights(self): for m in self.modules(): if isinstance(m, nn.Linear): nn.init.xavier_uniform_(m.weight) if m.bias is not None: nn.init.zeros_(m.bias) elif isinstance(m, nn.LSTM): for name, param in m.named_parameters(): if 'weight_ih' in name: nn.init.xavier_uniform_(param.data) elif 'weight_hh' in name: nn.init.orthogonal_(param.data) elif 'bias' in name: nn.init.zeros_(param.data) def forward(self, x_left, x_right): # expected shapes: (batch, seq_len, input_size) assert x_left.dim() == 3 and x_right.dim() == 3, "Inputs must be (batch, seq_len, input_size)" _, (h_left, _) = self.lstm_left(x_left) _, (h_right, _) = self.lstm_right(x_right) if self.bidirectional: h_left_last = torch.cat((h_left[-2], h_left[-1]), dim=1) h_right_last = torch.cat((h_right[-2], h_right[-1]), dim=1) else: h_left_last = h_left[-1] h_right_last = h_right[-1] combined = torch.cat((h_left_last, h_right_last), dim=1) coordinated = torch.relu(self.fc_coordination(combined)) coordinated = self.fc_dropout(coordinated) out = self.fc_output(coordinated) return out
 
