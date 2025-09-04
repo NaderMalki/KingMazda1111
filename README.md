@@ -1,120 +1,95 @@
 /Nader/maleikie/Invention of Deep Neural Networks /Artificial Intelligence /Bihemispheric Processing /Registration Number /140450140003002031/Iran
 
-python
-name: Python Syntax Check
+import torch
+import torch.nn as nn
+import time
 
-on: [push, pull_request]
+class EnhancedBiHemisphericLayer(nn.Module):
+    def __init__(self, input_dim=128, hidden_dim=64, output_dim=32, dropout_rate=0.1):
+        super().__init__()
+        self.input_norm = nn.LayerNorm(input_dim)
+        
+        # نیمکره چپ (خطی)
+        self.left = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.Dropout(dropout_rate)
+        )
+        
+        # نیمکره راست (غیرخطی)
+        self.right_linear = nn.Linear(input_dim, hidden_dim)
+        self.right_norm = nn.LayerNorm(hidden_dim)
+        self.right_dropout = nn.Dropout(dropout_rate)
+        
+        # ادغام و پردازش
+        self.integration = nn.Sequential(
+            nn.Linear(hidden_dim * 2, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout_rate)
+        )
+        
+        self.final = nn.Sequential(
+            nn.Linear(hidden_dim, output_dim),
+            nn.LayerNorm(output_dim),
+            nn.Dropout(dropout_rate)
+        )
 
-jobs:
-  check-python-syntax:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python
-        uses: actions/setup-python@v4
-      - name: Check syntax
-        run: python -m py_compile $(find . -name "*.py")
+    def forward(self, x):
+        x = self.input_norm(x)
+        x_left, x_right = x, x
+        
+        # پردازش نیمکره چپ
+        y_left = self.left(x_left)
+        
+        # پردازش نیمکره راست
+        y_right = self.right_linear(x_right)
+        y_right = self.right_norm(y_right)
+        y_right = torch.nn.functional.gelu(y_right)
+        y_right = self.right_dropout(y_right)
+        
+        # ترکیب و ادغام
+        y_combined = torch.cat([y_left, y_right], dim=-1)
+        y_integrated = self.integration(y_combined)
+        output = self.final(y_integrated)
+        
+        return output
 
-import numpy as np
-import matplotlib.pyplot as plt
- 
-d33 = 3e-1  (C/N)
-sigma = 1e5   (N/m^2)
-thickness = 2e-3   (m)
+# تست عملکرد
+def test_network():
+    # ایجاد مدل
+    model = EnhancedBiHemisphericLayer()
+    
+    # داده تستی
+    batch_size, seq_len, input_dim = 4, 10, 128
+    X = torch.randn(batch_size, seq_len, input_dim)
+    
+    print(f"ورودی: {X.shape}")
+    
+    # forward pass
+    start_time = time.time()
+    with torch.no_grad():
+        output = model(X)
+    end_time = time.time()
+    
+    print(f"خروجی: {output.shape}")
+    print(f"زمان پردازش: {(end_time - start_time)*1000:.2f} میلی‌ثانیه")
+    print(f"تعداد پارامترها: {sum(p.numel() for p in model.parameters()):,}")
+    
+    # بررسی گرادیان (بدون به‌روزرسانی)
+    model.train()
+    output = model(X)
+    loss = output.sum()
+    
+    start_time = time.time()
+    loss.backward()
+    backward_time = (time.time() - start_time) * 1000
+    
+    print(f"زمان محاسبه گرادیان: {backward_time:.2f} میلی‌ثانیه")
+    print("تست با موفقیت انجام شد - بدون ارزیابی عملکرد")
 
-voltage = d33 sigma  thickness
-print(f": {voltage:.6f} V")
-
-resistance = 1e3   
-current = voltage / resistance
-print( : {current:.6f} A")
-
-def spring_damper(F, k, c, x0, v0, t):
-    dt = t[1] - t[0]
-    x = np.zeros(len(t))
-    v = np.zeros(len(t))
-    x[0], v[0] = x0, v0
-    for i in range(1, len(t)):
-        a = (F - k  x[i-1] - c v[i-1]) / k
-        v[i] = v[i-1] + a dt
-        x[i] = x[i-1] + v[i]  dt
-    return x
-
-    return x
- 
-F = 10  (N)
-k = 1000    (N/m)
-c = 10    (Ns/m)
-t = np.linspace(0, 1, 100)   (s)
-  
-x = spring_damper(F, k, c, x0=0, v0=0, t=t)
-plt.plot(t, x)
-plt.title
-plt.xlabel (s)
-plt.ylabel(  (m)
-plt.grid()
-plt.show
-TensorFlow:
-python
-import tensorflow as tf
-import numpy as np
-
-
-X_data = np.random.rand(100, 2)   100 
-y_data = np.random.rand(100, 1)   
-140450140003002031/Nader.m
-model = tf.keras.Sequential([
-    tf.keras.layers.Dense(64, activation='relu', input_shape=(2,)),  
-    tf.keras.layers.Dense(64, activation=relu)
-    tf.keras.layers.Dense(1 activation=sigmoid')  
-])
-
-model.compile(optimizer=adam loss='mse', metrics=[accurac  مدل
-model.fit(X_data, y_data, epochs=100, batch_size=10)
-
-new_data = np.array([[0.5, 0.6]])      
-prediction = model.predict(new_data)
-print(f {prediction[0][0]:.2f})
-import numpy as np
-import tensorflow as tf
-import matplotlib.pyplot as plt
-
-import numpy as np
-import tensorflow as tf
-import matplotlib.pyplot as plt
-def simulate_piezoelectric(d33, sigma, thickness, resistance):  
-    voltage = d33 sigma  thickness   
-    current = voltage / resistance     return voltage, current
-d33 = 3e-12   (C/N)
-sigma = 1e5   (N/m^2)
-thickness = 2e-3 (m)
-resistance = 1e3  (Ohm)
-voltage, current = simulate_piezoelectric(d33, sigma, thickness, resistance)
-print(f {voltage:.6f} V)
-print(f: {current:.6f} A)
-def spring_damper(F, k, c, x0, v0, t):
-    dt = t[1] - t[0]
-    x = np.zeros(len(t))
-    v = np.zeros(len(t))
-    x[0], v[0] = x0, v0
-    for i in range(1, len(t)):
-        a = (F - k  x[i-1] - c  v[i-1]) / k
-        v[i] = v[i-1] + a  dt
-        x[i] = x[i-1] + v[i]  dt
-    return x
-F = 10   (N)
-k = 1000  (N/m)
-c = 10   (Ns/m)
-t = np.linspace(0, 1, 100)   (s)
-x = spring_damper(F, k, c, x0=0, v0=0, t=t)
-plt.plot(t, x)
-plt.title
-plt.xlabel s)
-plt.ylabel(  (m)
-plt.grid()
-plt.show()
-X_data = np.random.rand(100, 2)       
-y_data = np.random.rand(100, 1)
+if __name__ == "__main__":
+    test_network()
 
 
 
