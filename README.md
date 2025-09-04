@@ -1,55 +1,137 @@
-/Nader/maleikie/Invention of Deep Neural Networks /Artificial Intelligence /Bihemispheric Processing /Registration Number /140450140003002031/Iran
+#/Nader/maleikie/Invention of Deep Neural #Networks /Artificial Intelligence #/Bihemispheric Processing /Registration #Number /140450140003002031/Iran
 
-import torch
-import torch.nn as nn
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Dense, Concatenate
+from tensorflow.keras.utils import to_categorical
 import time
 
-class EnhancedBiHemisphericLayer(nn.Module):
-    def __init__(self, input_dim=128, hidden_dim=64, output_dim=32, dropout_rate=0.1):
-        super().__init__()
-        self.input_norm = nn.LayerNorm(input_dim)
-        
-        # نیمکره چپ (خطی)
-        self.left = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.Dropout(dropout_rate)
-        )
-        
-        # نیمکره راست (غیرخطی)
-        self.right_linear = nn.Linear(input_dim, hidden_dim)
-        self.right_norm = nn.LayerNorm(hidden_dim)
-        self.right_dropout = nn.Dropout(dropout_rate)
-        
-        # ادغام و پردازش
-        self.integration = nn.Sequential(
-            nn.Linear(hidden_dim * 2, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Dropout(dropout_rate)
-        )
-        
-        self.final = nn.Sequential(
-            nn.Linear(hidden_dim, output_dim),
-            nn.LayerNorm(output_dim),
-            nn.Dropout(dropout_rate)
-        )
+# --- مرحله 1: ایجاد داده مصنوعی با توزیع بهتر
+np.random.seed(42)
+n_samples = 1000  # افزایش نمونه‌ها برای یادگیری بهتر
+n_features = 8
+n_classes = 3
 
-    def forward(self, x):
-        x = self.input_norm(x)
-        x_left, x_right = x, x
-        
-        # پردازش نیمکره چپ
-        y_left = self.left(x_left)
-        
-        # پردازش نیمکره راست
-        y_right = self.right_linear(x_right)
-        y_right = self.right_norm(y_right)
-        y_right = torch.nn.functional.gelu(y_right)
-        y_right = self.right_dropout(y_right)
-        
-        # ترکیب و ادغام
-        y_combined = torch.cat([y_left, y_right], dim=-1)
+# ایجاد داده‌های ساختاریافته‌تر برای یادگیری معنادار
+X = np.random.randn(n_samples, n_features)  # توزیع نرمال
+# ایجاد الگوی قابل یادگیری برای کلاس‌ها
+y = (X[:, 0] + 2*X[:, 1] - X[:, 2] > 0).astype(int)
+y = np.where(X[:, 3] > 0.5, (y + 1) % n_classes, y)
+y_cat = to_categorical(y, num_classes=n_classes)
+
+# --- مرحله 2: تقسیم داده‌ها با اعتبارسنجی
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y_cat, test_size=0.2, random_state=42, stratify=y
+)
+X_train, X_val, y_train, y_val = train_test_split(
+    X_train, y_train, test_size=0.2, random_state=42, stratify=np.argmax(y_train, axis=1)
+)
+
+# --- مرحله 3: تعریف مدل بهینه‌شده
+def create_optimized_model():
+    inputs = Input(shape=(n_features,), name="gray_inputs")
+
+    # شاخه خطی با تنظیمات بهینه
+    linear_branch = Dense(16, activation='linear', name="linear_branch")(inputs)
+    linear_branch = Dense(8, activation='linear')(linear_branch)
+
+    # شاخه غیرخطی با تنظیمات بهینه
+    nonlinear_branch = Dense(16, activation='relu', name="nonlinear_branch")(inputs)
+    nonlinear_branch = Dense(8, activation='relu')(nonlinear_branch)
+    nonlinear_branch = Dense(4, activation='relu')(nonlinear_branch)
+
+    # ادغام و لایه‌های فشرده‌سازی
+    fusion = Concatenate(name="fusion_layer")([linear_branch, nonlinear_branch])
+    
+    # لایه‌های فشرده‌سازی پیش از خروجی
+    fusion = Dense(12, activation='relu')(fusion)
+    fusion = Dense(8, activation='relu')(fusion)
+    fusion = Dense(6, activation='relu')(fusion)
+
+    # خروجی نهایی
+    outputs = Dense(n_classes, activation='softmax', name="output_layer")(fusion)
+
+    model = Model(inputs=inputs, outputs=outputs)
+    
+    # کامپایل با تنظیمات بهینه
+    model.compile(
+        optimizer='adam',
+        loss='categorical_crossentropy',
+        metrics=['accuracy', 'precision', 'recall']
+    )
+    
+    return model
+
+# ایجاد مدل
+model = create_optimized_model()
+
+# نمایش خلاصه مدل
+model.summary()
+
+# --- مرحله 4: آموزش با تنظیمات بهینه
+start_time = time.time()
+
+history = model.fit(
+    X_train, y_train,
+    epochs=50,
+    batch_size=32,  # batch size بهینه‌تر
+    validation_data=(X_val, y_val),
+    verbose=1,
+    callbacks=[
+        tf.keras.callbacks.EarlyStopping(
+            monitor='val_loss',
+            patience=10,
+            restore_best_weights=True
+        ),
+        tf.keras.callbacks.ReduceLROnPlateau(
+            monitor='val_loss',
+            factor=0.5,
+            patience=5,
+            min_lr=1e-6
+        )
+    ]
+)
+
+training_time = time.time() - start_time
+print(f"\nTraining time: {training_time:.2f} seconds")
+
+# --- مرحله 5: ارزیابی جامع
+print("\n" + "="*50)
+print("EVALUATION RESULTS")
+print("="*50)
+
+# پیش‌بینی و ارزیابی
+y_pred_probs = model.predict(X_test, verbose=0)
+y_pred_classes = np.argmax(y_pred_probs, axis=1)
+y_true_classes = np.argmax(y_test, axis=1)
+
+# ماتریس درهم‌ریختگی
+cm = confusion_matrix(y_true_classes, y_pred_classes)
+print("Confusion Matrix:")
+print(cm)
+
+# گزارش طبقه‌بندی
+print("\nClassification Report:")
+print(classification_report(y_true_classes, y_pred_classes, digits=4))
+
+# محاسبه دقت کلی
+accuracy = np.mean(y_pred_classes == y_true_classes)
+print(f"Overall Accuracy: {accuracy:.4f}")
+
+# ارزیابی نهایی روی داده تست
+test_loss, test_accuracy, test_precision, test_recall = model.evaluate(X_test, y_test, verbose=0)
+print(f"\nTest Loss: {test_loss:.4f}")
+print(f"Test Accuracy: {test_accuracy:.4f}")
+print(f"Test Precision: {test_precision:.4f}")
+print(f"Test Recall: {test_recall:.4f}")
+
+# نمایش تاریخچه آموزش
+print("\nTraining History:")
+print(f"Final Training Accuracy: {history.history['accuracy'][-1]:.4f}")
+print(f"Final Validation Accuracy: {history.history['val_accuracy'][-1]:.4f}")
+
         y_integrated = self.integration(y_combined)
         output = self.final(y_integrated)
         
