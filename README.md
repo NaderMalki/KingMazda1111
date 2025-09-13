@@ -1,317 +1,245 @@
-#/Nader/maleikie/Invention of Deep Neural #Networks /Artificial Intelligence #/Bihemispheric Processing /Registration #Number /140450140003002031/Iran
+#PCT/IR2025/050026/Nader.malki
+import torch
+import torch.nn as nn
 
-import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, confusion_matrix
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Dense, Concatenate
-from tensorflow.keras.utils import to_categorical
-import time
+# تابع کمکی دیباگ (اصلاح‌شده برای مدیریت تنسورهای بزرگ/کوچک)
+def debug_print(label, value=None):
+    """تابع استاندارد دیباگ"""
+    if value is not None:
+        if isinstance(value, torch.Tensor):
+            if value.numel() > 10:
+                # برای تنسورهای بزرگ: آمار
+                debug_line = f"[DEBUG] {label}: shape={value.shape}, dtype={value.dtype}, device={value.device}, "
+                debug_line += f"mean={value.mean().item():.4f}, std={value.std().item():.4f}"
+            else:
+                # برای تنسورهای کوچک: مقادیر کامل
+                numpy_val = value.detach().cpu().numpy() if value.requires_grad else value.cpu().numpy()
+                debug_line = f"[DEBUG] {label}: {numpy_val}"
+        else:
+            debug_line = f"[DEBUG] {label}: {value}"
+    else:
+        debug_line = f"[DEBUG] === {label} ==="
+    print(debug_line)
 
-# --- مرحله 1: ایجاد داده مصنوعی با توزیع بهتر
-np.random.seed(42)
-n_samples = 1000  # افزایش نمونه‌ها برای یادگیری بهتر
-n_features = 8
-n_classes = 3
+# کلاس ساده برای AttentionMechanism (پیاده‌سازی اولیه بر اساس self-attention)
+class AttentionMechanism(nn.Module):
+    def init(self, input_dim: int, hidden_dim: int):
+        super().__init__()
+        self.query = nn.Linear(input_dim, hidden_dim)
+        self.key = nn.Linear(input_dim, hidden_dim)
+        self.value = nn.Linear(input_dim, hidden_dim)
+        debug_print("AttentionMechanism init")
+        debug_print("input_dim", input_dim)
+        debug_print("hidden_dim", hidden_dim)
 
-# ایجاد داده‌های ساختاریافته‌تر برای یادگیری معنادار
-X = np.random.randn(n_samples, n_features)  # توزیع نرمال
-# ایجاد الگوی قابل یادگیری برای کلاس‌ها
-y = (X[:, 0] + 2*X[:, 1] - X[:, 2] > 0).astype(int)
-y = np.where(X[:, 3] > 0.5, (y + 1) % n_classes, y)
-y_cat = to_categorical(y, num_classes=n_classes)
+    def forward(self, x: torch.Tensor):
+        q = self.query(x)
+        k = self.key(x)
+        v = self.value(x)
+        attn_scores = torch.matmul(q, k.transpose(-2, -1)) / (k.size(-1) ** 0.5)
+        attn_weights = torch.softmax(attn_scores, dim=-1)
+        attended = torch.matmul(attn_weights, v)
+        debug_print("attended shape", attended.shape)
+        return attended, attn_weights
 
-# --- مرحله 2: تقسیم داده‌ها با اعتبارسنجی
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y_cat, test_size=0.2, random_state=42, stratify=y
-)
-X_train, X_val, y_train, y_val = train_test_split(
-    X_train, y_train, test_size=0.2, random_state=42, stratify=np.argmax(y_train, axis=1)
-)
+# کلاس ساده برای SignalModulation (پیاده‌سازی اولیه با sigmoid modulation)
+class SignalModulation(nn.Module):
+    def init(self, dim: int):
+        super().__init__()
+        self.modulation_weight = nn.Parameter(torch.randn(dim))
+        self.noise_filter = nn.Linear(dim, dim)  # فیلتر ساده
+        debug_print("SignalModulation init")
+        debug_print("dim", dim)
 
-# --- مرحله 3: تعریف مدل بهینه‌شده
-def create_optimized_model():
-    inputs = Input(shape=(n_features,), name="gray_inputs")
+    def forward(self, x: torch.Tensor):
+        modulation_sigmoid = torch.sigmoid(self.modulation_weight)
+        modulated = x * modulation_sigmoid.unsqueeze(0)
+        filtered = self.noise_filter(modulated)
+        debug_print("modulated shape", modulated.shape)
+        return filtered
 
-    # شاخه خطی با تنظیمات بهینه
-    linear_branch = Dense(16, activation='linear', name="linear_branch")(inputs)
-    linear_branch = Dense(8, activation='linear')(linear_branch)
+# کلاس DominoEffect (از کدهای قبلی، اصلاح‌شده)
+class DominoEffect(nn.Module):
+    def init(self, dim: int):
+        super().__init__()
+        self.dim = dim
+        self.domino_connections = nn.Parameter(torch.randn(dim, dim))
+        self.thresholds = nn.Parameter(torch.rand(dim))
+        debug_print("DominoEffect init")
+        debug_print("dim", dim)
+        debug_print("thresholds sample", self.thresholds[:3])
 
-    # شاخه غیرخطی با تنظیمات بهینه
-    nonlinear_branch = Dense(16, activation='relu', name="nonlinear_branch")(inputs)
-    nonlinear_branch = Dense(8, activation='relu')(nonlinear_branch)
-    nonlinear_branch = Dense(4, activation='relu')(nonlinear_branch)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        batch_size = x.size(0)
+        current_activation = torch.sigmoid(x)
+        for step in range(3):  # 3 مرحله انتشار
+            new_activation = torch.matmul(current_activation, self.domino_connections)
+            new_activation = torch.where(new_activation > self.thresholds.unsqueeze(0).expand(batch_size, -1),
+                                         new_activation, torch.zeros_like(new_activation))
+            current_activation = 0.7 * current_activation + 0.3 * new_activation
+            debug_print(f"domino_step {step+1} activation mean", current_activation.mean())
+        return current_activation
 
-    # ادغام و لایه‌های فشرده‌سازی
-    fusion = Concatenate(name="fusion_layer")([linear_branch, nonlinear_branch])
-    
-    # لایه‌های فشرده‌سازی پیش از خروجی
-    fusion = Dense(12, activation='relu')(fusion)
-    fusion = Dense(8, activation='relu')(fusion)
-    fusion = Dense(6, activation='relu')(fusion)
+# کلاس BrainHemisphere (اصلاح‌شده - بر اساس ساختار دو نیمکره‌ای PCT/IR2025/050026)
+class BrainHemisphere(nn.Module):
+    def init(self, input_dim: int, hidden_dim: int, output_dim: int, hemisphere_type: str):
+        super().__init__()
 
-    # خروجی نهایی
-    outputs = Dense(n_classes, activation='softmax', name="output_layer")(fusion)
+# کلاس اصلی KingMazdaNetwork (اصلاح‌شده - مدل کامل بر اساس PCT/IR2025/050026)
+class KingMazdaNetwork(nn.Module):
+    def init(self, input_dim: int = 6, hidden_dim: int = 128, output_dim: int = 2):
+        super().__init__()
+        debug_print("KingMazdaNetwork init")
+        debug_print("input_dim", input_dim)
+        debug_print("hidden_dim", hidden_dim)
+        debug_print("output_dim", output_dim)
+        self.attention = AttentionMechanism(input_dim, hidden_dim)
+        self.signal_modulation = SignalModulation(hidden_dim)
+        self.projection_neurons = ProjectionNeurons(hidden_dim, hidden_dim)
+        self.left_hemisphere = BrainHemisphere(hidden_dim, hidden_dim, output_dim, "left")
+        self.right_hemisphere = BrainHemisphere(hidden_dim, hidden_dim, output_dim, "right")
+        self.corpus_callosum = CorpusCallosum(output_dim)
+        self.final_output = nn.Linear(output_dim, output_dim)
+        total_params = sum(p.numel() for p in self.parameters())
+        trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        debug_print("total_parameters", total_params)
+        debug_print("trainable_parameters", trainable_params)
 
-    model = Model(inputs=inputs, outputs=outputs)
-    
-    # کامپایل با تنظیمات بهینه
-    model.compile(
-        optimizer='adam',
-        loss='categorical_crossentropy',
-        metrics=['accuracy', 'precision', 'recall']
-    )
-    
-    return model
+    def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
+        debug_print("\n" + "="*60)
+        debug_print("KING MAZDA NETWORK FORWARD PASS START")
+        debug_print("="*60)
+        debug_print("network_input shape", x.shape)
+        debug_print("network_input sample", x[0] if x.dim() > 1 else x[:6])
+        attended_input, attention_weights = self.attention(x)
+        modulated_signal = self.signal_modulation(attended_input)
+        projected_signal = self.projection_neurons(modulated_signal)
+        left_output = self.left_hemisphere(projected_signal)
+        right_output = self.right_hemisphere(projected_signal)
+        integrated_output = self.corpus_callosum(left_output, right_output)
+        final_out = torch.sigmoid(self.final_output(integrated_output))
+        debug_print("\n=== FINAL NETWORK OUTPUT ===")
+        debug_print("final_output shape", final_out.shape)
+        debug_print("final_output sample", final_out[0])
+        debug_print("="*60)
+        debug_print("KING MAZDA NETWORK FORWARD PASS END")
+        debug_print("="*60)
+        return {
+            'final_output': final_out,
+            'left_hemisphere': left_output,
+            'right_hemisphere': right_output,
+            'integrated': integrated_output,
+            'attention_weights': attention_weights,
+            'attended_input': attended_input,
+            'modulated_signal': modulated_signal,
+            'projected_signal': projected_signal
+        }
 
-# ایجاد مدل
-model = create_optimized_model()
-
-# نمایش خلاصه مدل
-model.summary()
-
-# --- مرحله 4: آموزش با تنظیمات بهینه
-start_time = time.time()
-
-history = model.fit(
-    X_train, y_train,
-    epochs=50,
-    batch_size=32,  # batch size بهینه‌تر
-    validation_data=(X_val, y_val),
-    verbose=1,
-    callbacks=[
-        tf.keras.callbacks.EarlyStopping(
-            monitor='val_loss',
-            patience=10,
-            restore_best_weights=True
-        ),
-        tf.keras.callbacks.ReduceLROnPlateau(
-            monitor='val_loss',
-            factor=0.5,
-            patience=5,
-            min_lr=1e-6
-        )
-    ]
-)
-
-training_time = time.time() - start_time
-print(f"\nTraining time: {training_time:.2f} seconds")
-
-# --- مرحله 5: ارزیابی جامع
-print("\n" + "="*50)
-print("EVALUATION RESULTS")
-print("="*50)
-
-# پیش‌بینی و ارزیابی
-y_pred_probs = model.predict(X_test, verbose=0)
-y_pred_classes = np.argmax(y_pred_probs, axis=1)
-y_true_classes = np.argmax(y_test, axis=1)
-
-# ماتریس درهم‌ریختگی
-cm = confusion_matrix(y_true_classes, y_pred_classes)
-print("Confusion Matrix:")
-print(cm)
-
-# گزارش طبقه‌بندی
-print("\nClassification Report:")
-print(classification_report(y_true_classes, y_pred_classes, digits=4))
-
-# محاسبه دقت کلی
-accuracy = np.mean(y_pred_classes == y_true_classes)
-print(f"Overall Accuracy: {accuracy:.4f}")
-
-# ارزیابی نهایی روی داده تست
-test_loss, test_accuracy, test_precision, test_recall = model.evaluate(X_test, y_test, verbose=0)
-print(f"\nTest Loss: {test_loss:.4f}")
-print(f"Test Accuracy: {test_accuracy:.4f}")
-print(f"Test Precision: {test_precision:.4f}")
-print(f"Test Recall: {test_recall:.4f}")
-
-# نمایش تاریخچه آموزش
-print("\nTraining History:")
-print(f"Final Training Accuracy: {history.history['accuracy'][-1]:.4f}")
-print(f"Final Validation Accuracy: {history.history['val_accuracy'][-1]:.4f}")
-
-        y_integrated = self.integration(y_combined)
-        output = self.final(y_integrated)
-        
-        return output
-
-# تست عملکرد
-def test_network():
-    # ایجاد مدل
-    model = EnhancedBiHemisphericLayer()
-    
-    # داده تستی
-    batch_size, seq_len, input_dim = 4, 10, 128
-    X = torch.randn(batch_size, seq_len, input_dim)
-    
-    print(f"ورودی: {X.shape}")
-    
-    # forward pass
-    start_time = time.time()
+# تابع تست (اصلاح‌شده با seed و assert)
+def test_king_mazda_network_debug():
+    """تست دیتیل شبکه King Mazda با دیباگ کامل"""
+    print("🧠 KING MAZDA NETWORK DEBUG TEST")
+    print("=" * 80)
+    torch.manual_seed(42)  # برای reproducibility
+    debug_print("Creating KingMazdaNetwork")
+    model = KingMazdaNetwork(input_dim=6, hidden_dim=16, output_dim=2)  # کوچک برای دیباگ
+    batch_size = 2
+    test_input = torch.randn(batch_size, 6) * 0.5
+    debug_print("test_input created")
+    debug_print("batch_size", batch_size)
+    debug_print("test_input shape", test_input.shape)
+    debug_print("test_input values", test_input)
+    debug_print("\nStarting network forward pass...")
     with torch.no_grad():
-        output = model(X)
-    end_time = time.time()
-    
-    print(f"خروجی: {output.shape}")
-    print(f"زمان پردازش: {(end_time - start_time)*1000:.2f} میلی‌ثانیه")
-    print(f"تعداد پارامترها: {sum(p.numel() for p in model.parameters()):,}")
-    
-    # بررسی گرادیان (بدون به‌روزرسانی)
-    model.train()
-    output = model(X)
-    loss = output.sum()
-    
-    start_time = time.time()
-    loss.backward()
-    backward_time = (time.time() - start_time) * 1000
-    
-    print(f"زمان محاسبه گرادیان: {backward_time:.2f} میلی‌ثانیه")
-    print("تست با موفقیت انجام شد - بدون ارزیابی عملکرد")
+        results = model(test_input)
+    assert 'final_output' in results, "Final output missing"
+    print("\n" + "="*80)
+    print("📊 RESULTS SUMMARY")
+    print("="*80)
+    for key, value in results.items():
+        if isinstance(value, torch.Tensor):
+            print(f"• {key}:")
+            print(f" Shape: {value.shape}")
+            print(f" Sample values: {value[0].detach().numpy()}")
+            print(f" Range: [{value.min().item():.4f}, {value.max().item():.4f}]")
+            print(f" Mean: {value.mean().item():.4f}")
+            print()
 
-if __name__ == "__main__":
+# اجرای تست (کامنت‌شده؛ برای اجرا uncomment کنید)
+# test_king_mazda_network_debug()
 
-    test_network()
+self.hemisphere_type = hemisphere_type
+        self.processing_layer = nn.Linear(input_dim, hidden_dim)
+        self.domino_layer = DominoEffect(hidden_dim)
+        self.output_layer = nn.Linear(hidden_dim, output_dim)
+        if hemisphere_type == "left":
+            self.specialty_weight = torch.tensor([1.2, 0.8])  # logical/analytical
+            specialty_desc = "Logical/Analytical"
+        elif hemisphere_type == "right":
+            self.specialty_weight = torch.tensor([0.8, 1.2])  # holistic/creative
+            specialty_desc = "Holistic/Creative"
+        else:
+            raise ValueError("Invalid hemisphere_type")
+        debug_print("BrainHemisphere init")
+        debug_print("hemisphere_type", hemisphere_type)
+        debug_print("specialty_weight", self.specialty_weight)
+        debug_print("specialty_description", specialty_desc)
 
-# مصرف انرژی تقریبی:
-# BiHemispheric: 100% (معیار)
-# SimpleCNN: 232% (انرژی بیشتر)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        debug_print(f"\n=== BrainHemisphere ({self.hemisphere_type}) Forward ===")
+        debug_print("input x shape", x.shape)
+        debug_print("input x sample", x[0, :3] if x.dim() > 1 else x[:3])
+        hidden = torch.relu(self.processing_layer(x))
+        domino_output = self.domino_layer(hidden)
+        output = self.output_layer(domino_output)
+        specialty_expanded = self.specialty_weight.unsqueeze(0).expand(x.size(0), -1)
+        specialized_output = output * specialty_expanded
+        return specialized_output
 
-# پیچیدگی محاسباتی:
-# BiHemispheric: O(n) کاهش 57%
-# SimpleCNN: O(n) سنتی
-class CoordinatedDualHemisphere(nn.Module):
-def init(self, input_size=128, hidden_size=64, num_layers=2, num_classes=2, bidirectional=False, dropout=0.2, fc_dropout=0.2): super().__init__() self.bidirectional = bidirectional self.hidden_size = hidden_size self.num_layers = num_layers self.num_directions = 2 if bidirectional else 1 self.lstm_left = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=dropout, bidirectional=bidirectional) self.lstm_right = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=dropout, bidirectional=bidirectional) coord_in = hidden_size * self.num_directions * 2 self.fc_coordination = nn.Linear(coord_in, hidden_size) self.fc_dropout = nn.Dropout(fc_dropout) self.fc_output = nn.Linear(hidden_size, num_classes) self._init_weights() def _init_weights(self): for m in self.modules(): if isinstance(m, nn.Linear): nn.init.xavier_uniform_(m.weight) if m.bias is not None: nn.init.zeros_(m.bias) elif isinstance(m, nn.LSTM): for name, param in m.named_parameters(): if 'weight_ih' in name: nn.init.xavier_uniform_(param.data) elif 'weight_hh' in name: nn.init.orthogonal_(param.data) elif 'bias' in name: nn.init.zeros_(param.data) def forward(self, x_left, x_right): # expected shapes: (batch, seq_len, input_size) assert x_left.dim() == 3 and x_right.dim() == 3, "Inputs must be (batch, seq_len, input_size)" _, (h_left, _) = self.lstm_left(x_left) _, (h_right, _) = self.lstm_right(x_right) if self.bidirectional: h_left_last = torch.cat((h_left[-2], h_left[-1]), dim=1) h_right_last = torch.cat((h_right[-2], h_right[-1]), dim=1) else: h_left_last = h_left[-1] h_right_last = h_right[-1] combined = torch.cat((h_left_last, h_right_last), dim=1) coordinated = torch.relu(self.fc_coordination(combined)) coordinated = self.fc_dropout(coordinated) out = self.fc_output(coordinated) return out
-self.bn2 = nn.BatchNorm1d(hidden_dim) self.dropout2 = nn.Dropout(dropout_rate) # Third convolution block with reduced channels self.conv3 = nn.Conv1d(hidden_dim, output_dim, kernel_size=3, padding=1) self.bn3 = nn.BatchNorm1d(output_dim) self.dropout3 = nn.Dropout(dropout_rate) def forward(self, x): # Input normalization x = self.input_norm(x) # x shape: (batch_size, seq_len, input_dim) # Conv1d expects: (batch_size, input_dim, seq_len) x = x.transpose(1, 2) # (B, 128, 10) if self.debug_mode: print(f"[DEBUG] CNN Input shape: {x.shape}") # First convolution block x = self.conv1(x) # (B, 64, 10) x = self.bn1(x) x = F.gelu(x) # Using GELU for consistency x = self.dropout1(x) if self.debug_mode: print(f"[DEBUG] Conv1 output shape: {x.shape}") # Second convolution block x = self.conv2(x) # (B, 64, 10) x = self.bn2(x) x = F.gelu(x) x = self.dropout2(x) if self.debug_mode: print(f"[DEBUG] Conv2 output shape: {x.shape}") # Third convolution block x = self.conv3(x) # (B, 32, 10) x = self.bn3(x) x = self.dropout3(x) if self.debug_mode: print(f"[DEBUG] Conv3 output shape: {x.shape}") # Transpose back to (B, S, 32) to preserve sequence information x = x.transpose(1, 2) # (B, 10, 32) if self.debug_mode: print(f"[DEBUG] CNN Final output shape: {x.shape}") return x def create_sample_data(batch_size=4, seq_len=10, input_dim=128, num_classes=32): """Create sample data for testing""" torch.manual_seed(42) # Create more realistic data with varying scales X = torch.randn(batch_size, seq_len, input_dim) * 2.0 + 1.0 # Scale and shift for testing normalization y = torch.randint(0, num_classes, (batch_size, seq_len)) return X, y def train_model(model, X, y, criterion, optimizer, device, debug_mode=False): """Train model for one batch with proper timing and debugging""" model.train() model.to(device) X, y = X.to(device), y.to(device) # Ensure CUDA operations are synchronized for accurate timing if device.type == 'cuda': torch.cuda.synchronize() start_time = time.time() # Forward pass optimizer.zero_grad(set_to_none=True) scaler = GradScaler() with autocast(): output = model(X) # Proper reshaping for sequence classification output_flat = output.view(-1, output.size(-1)) # (B*S, output_dim) y_flat = y.view(-1) # (B*S,) loss = criterion(output_flat, y_flat) # Backward pass scaler.scale(loss).backward() # Gradient clipping scaler.unscale_(optimizer) torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) # Optimizer step scaler.step(optimizer) scaler.update() # Ensure CUDA operations are synchronized for accurate timing if device.type == 'cuda': torch.cuda.synchronize() end_time = time.time() training_time = end_time - start_time if debug_mode: print(f"[DEBUG] Training time: {training_time:.6f}s") print(f"[DEBUG] Loss: {loss.item():.6f}") return loss.item(), training_time, output def compare_models(): """Compare EnhancedBiHemisphericLayer with proper SimpleCNN""" # Device configuration device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') print(f"Using device: {device}") # Create sample data X, y = create_sample_data() print(f"Input data shape: {X.shape}") print(f"Target shape: {y.shape}") print(f"Input data range: [{X.min():.4f}, {X.max():.4f}]") # Model configurations criterion = nn.CrossEntropyLoss() # Test Enhanced BiHemispheric Layer print("\n" + "="*60) print("Testing Enhanced BiHemispheric Layer") print("="*60) bihem_model = EnhancedBiHemisphericLayer(debug_mode=True, dropout_rate=0.1) bihem_optimizer = torch.optim.AdamW(bihem_model.parameters(), lr=0.001, weight_decay=1e-4) bihem_loss, bihem_time, bihem_output = train_model( bihem_model, X, y, criterion, bihem_optimizer, device, debug_mode=True ) # Test Proper Simple CNN print("\n" + "="*60) print("Testing Proper Simple CNN") print("="*60) cnn_model = SimpleCNN(debug_mode=True, dropout_rate=0.1) cnn_optimizer = torch.optim.AdamW(cnn_model.parameters(), lr=0.001, weight_decay=1e-4) cnn_loss, cnn_time, cnn_output = train_model( cnn_model, X, y, criterion, cnn_optimizer, device, debug_mode=True ) # Comparison results print("\n" + "="*60) print("COMPARISON RESULTS")print("="*60) print(f"{'Model':<25} {'Loss':<12} {'Time (s)':<12} {'Output Shape':<15}") print("-" * 60) print(f"{'BiHemispheric Layer':<25} {bihem_loss:<12.6f} {bihem_time:<12.6f} {str(bihem_output.shape):<15}") print(f"{'Simple CNN':<25} {cnn_loss:<12.6f} {cnn_time:<12.6f} {str(cnn_output.shape):<15}") # Additional metrics print("\nAdditional Metrics:") print(f"BiHemispheric Output range: [{bihem_output.min():.4f}, {bihem_output.max():.4f}]") print(f"Simple CNN Output range: [{cnn_output.min():.4f}, {cnn_output.max():.4f}]") # Parameter count comparison bihem_params = sum(p.numel() for p in bihem_model.parameters()) cnn_params = sum(p.numel() for p in cnn_model.parameters()) print(f"\nParameter Count:") print(f"BiHemispheric Layer: {bihem_params:,}") print(f"Simple CNN: {cnn_params:,}") if name == "__main__": compare_models() اگر ایراد داشت
-import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, confusion_matrix
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Dense, Concatenate
-from tensorflow.keras.utils import to_categorical
-import time
+# کلاس CorpusCallosum (اصلاح‌شده با میانگین واقعی - ادغام نیمکره‌ها بر اساس PCT/IR2025/050026)
+class CorpusCallosum(nn.Module):
+    def init(self, dim: int):
+        super().__init__()
+        self.dim = dim
+        self.cross_connection = nn.Linear(dim * 2, dim)
+        self.integration_weight = nn.Parameter(torch.tensor(0.5))
+        debug_print("CorpusCallosum init")
+        debug_print("dim", dim)
+        debug_print("integration_weight", self.integration_weight.item())
 
-# --- مرحله 1: ایجاد داده مصنوعی با توزیع بهتر
-np.random.seed(42)
-n_samples = 1000  # افزایش نمونه‌ها برای یادگیری بهتر
-n_features = 8
-n_classes = 3
+    def forward(self, left_output: torch.Tensor, right_output: torch.Tensor) -> torch.Tensor:
+        assert left_output.shape == right_output.shape, "Hemisphere outputs must match shape"
+        debug_print("\n=== CorpusCallosum Forward ===")
+        combined = torch.cat([left_output, right_output], dim=-1)
+        integrated = self.cross_connection(combined)
+        integration_w = self.integration_weight
+        hemisphere_avg = (left_output + right_output) / 2  # میانگین واقعی
+        final_output = hemisphere_avg * integration_w + integrated * (1 - integration_w)
+        return final_output
 
-# ایجاد داده‌های ساختاریافته‌تر برای یادگیری معنادار
-X = np.random.randn(n_samples, n_features)  # توزیع نرمال
-# ایجاد الگوی قابل یادگیری برای کلاس‌ها
-y = (X[:, 0] + 2*X[:, 1] - X[:, 2] > 0).astype(int)
-y = np.where(X[:, 3] > 0.5, (y + 1) % n_classes, y)
-y_cat = to_categorical(y, num_classes=n_classes)
+# کلاس ProjectionNeurons (اصلاح‌شده)
+class ProjectionNeurons(nn.Module):
+    def init(self, input_dim: int, output_dim: int):
+        super().__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.projection = nn.Linear(input_dim, output_dim)
+        self.activation_modulation = nn.Parameter(torch.ones(output_dim))
+        debug_print("ProjectionNeurons init")
+        debug_print("input_dim", input_dim)
+        debug_print("output_dim", output_dim)
+        debug_print("activation_modulation initial", self.activation_modulation[:3])
 
-# --- مرحله 2: تقسیم داده‌ها با اعتبارسنجی
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y_cat, test_size=0.2, random_state=42, stratify=y
-)
-X_train, X_val, y_train, y_val = train_test_split(
-    X_train, y_train, test_size=0.2, random_state=42, stratify=np.argmax(y_train, axis=1)
-)
-
-# --- مرحله 3: تعریف مدل بهینه‌شده
-def create_optimized_model():
-    inputs = Input(shape=(n_features,), name="gray_inputs")
-
-    # شاخه خطی با تنظیمات بهینه
-    linear_branch = Dense(16, activation='linear', name="linear_branch")(inputs)
-    linear_branch = Dense(8, activation='linear')(linear_branch)
-
-    # شاخه غیرخطی با تنظیمات بهینه
-    nonlinear_branch = Dense(16, activation='relu', name="nonlinear_branch")(inputs)
-    nonlinear_branch = Dense(8, activation='relu')(nonlinear_branch)
-    nonlinear_branch = Dense(4, activation='relu')(nonlinear_branch)
-
-    # ادغام و لایه‌های فشرده‌سازی
-    fusion = Concatenate(name="fusion_layer")([linear_branch, nonlinear_branch])
-    
-    # لایه‌های فشرده‌سازی پیش از خروجی
-    fusion = Dense(12, activation='relu')(fusion)
-    fusion = Dense(8, activation='relu')(fusion)
-    fusion = Dense(6, activation='relu')(fusion)
-
-    # خروجی نهایی
-    outputs = Dense(n_classes, activation='softmax', name="output_layer")(fusion)
-
-    model = Model(inputs=inputs, outputs=outputs)
-    
-    # کامپایل با تنظیمات بهینه
-    model.compile(
-        optimizer='adam',
-        loss='categorical_crossentropy',
-        metrics=['accuracy', 'precision', 'recall']
-    )
-    
-    return model
-
-# ایجاد مدل
-model = create_optimized_model()
-
-# نمایش خلاصه مدل
-model.summary()
-
-# --- مرحله 4: آموزش با تنظیمات بهینه
-start_time = time.time()
-
-history = model.fit(
-    X_train, y_train,
-    epochs=50,
-    batch_size=32,  # batch size بهینه‌تر
-    validation_data=(X_val, y_val),
-    verbose=1,
-    callbacks=[
-        tf.keras.callbacks.EarlyStopping(
-            monitor='val_loss',
-            patience=10,
-            restore_best_weights=True
-        ),
-        tf.keras.callbacks.ReduceLROnPlateau(
-            monitor='val_loss',
-            factor=0.5,
-            patience=5,
-            min_lr=1e-6
-        )
-    ]
-)
-
-training_time = time.time() - start_time
-print(f"\nTraining time: {training_time:.2f} seconds")
-
-# --- مرحله 5: ارزیابی جامع
-print("\n" + "="*50)
-print("EVALUATION RESULTS")
-print("="*50)
-
-# پیش‌بینی و ارزیابی
-y_pred_probs = model.predict(X_test, verbose=0)
-y_pred_classes = np.argmax(y_pred_probs, axis=1)
-y_true_classes = np.argmax(y_test, axis=1)
-
-# ماتریس درهم‌ریختگی
-cm = confusion_matrix(y_true_classes, y_pred_classes)
-print("Confusion Matrix:")
-print(cm)
-
-# گزارش طبقه‌بندی
-print("\nClassification Report:")
-print(classification_report(y_true_classes, y_pred_classes, digits=4))
-
-# محاسبه دقت کلی
-accuracy = np.mean(y_pred_classes == y_true_classes)
-print(f"Overall Accuracy: {accuracy:.4f}")
-
-# ارزیابی نهایی روی داده تست
-test_loss, test_accuracy, test_precision, test_recall = model.evaluate(X_test, y_test, verbose=0)
-print(f"\nTest Loss: {test_loss:.4f}")
-print(f"Test Accuracy: {test_accuracy:.4f}")
-print(f"Test Precision: {test_precision:.4f}")
-print(f"Test Recall: {test_recall:.4f}")
-
-# نمایش تاریخچه آموزش
-print("\nTraining History:")
-print(f"Final Training Accuracy: {history.history['accuracy'][-1]:.4f}")
-print(f"Final Validation Accuracy: {history.history['val_accuracy'][-1]:.4f}")
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        debug_print("\n=== ProjectionNeurons Forward ===")
+        debug_print("input x shape", x.shape)
+        debug_print("input x sample", x[0, :3] if x.dim() > 1 else x[:3])
+        projected = self.projection(x)
+        debug_print("projected shape", projected.shape)
+        debug_print("projected sample", projected[0, :3] if projected.dim() > 1 else projected[:3])
+        modulation_sigmoid = torch.sigmoid(self.activation_modulation)
+        debug_print("modulation_sigmoid sample", modulation_sigmoid[:3])
+        modulated = projected * modulation_sigmoid.unsqueeze(0).expand(x.size(0), -1)
+        debug_print("modulated shape", modulated.shape)
+        debug_print("modulated sample", modulated[0, :3] if modulated.dim() > 1 else modulated[:3])
+        return modulated
