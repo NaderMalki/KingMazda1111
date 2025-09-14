@@ -1,10 +1,10 @@
 #PCT/IR2025/050026/Nader.malki
-import torch
-import torch.nn as nn
+#import torch
+#import torch.nn as nn
 
 # تابع کمکی دیباگ (اصلاح‌شده برای مدیریت تنسورهای بزرگ/کوچک)
 def debug_print(label, value=None):
-    """تابع استاندارد دیباگ"""
+  #  """تابع استاندارد دیباگ"""#
     if value is not None:
         if isinstance(value, torch.Tensor):
             if value.numel() > 10:
