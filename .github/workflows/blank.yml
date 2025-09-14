@@ -1,4 +1,247 @@
-# This is a basic workflow to help you get started with Actions
+# import torch
+import torch.nn as nn
+
+# تابع کمکی دیباگ (اصلاح‌شده برای مدیریت تنسورهای بزرگ/کوچک)
+def debug_print(label, value=None):
+    """تابع استاندارد دیباگ"""
+    if value is not None:
+        if isinstance(value, torch.Tensor):
+            if value.numel() > 10:
+                # برای تنسورهای بزرگ: آمار
+                debug_line = f"[DEBUG] {label}: shape={value.shape}, dtype={value.dtype}, device={value.device}, "
+                debug_line += f"mean={value.mean().item():.4f}, std={value.std().item():.4f}"
+            else:
+                # برای تنسورهای کوچک: مقادیر کامل
+                numpy_val = value.detach().cpu().numpy() if value.requires_grad else value.cpu().numpy()
+                debug_line = f"[DEBUG] {label}: {numpy_val}"
+        else:
+            debug_line = f"[DEBUG] {label}: {value}"
+    else:
+        debug_line = f"[DEBUG] === {label} ==="
+    print(debug_line)
+
+# کلاس ساده برای AttentionMechanism (پیاده‌سازی اولیه بر اساس self-attention)
+class AttentionMechanism(nn.Module):
+    def __init__(self, input_dim: int, hidden_dim: int):
+        super().__init__()
+        self.query = nn.Linear(input_dim, hidden_dim)
+        self.key = nn.Linear(input_dim, hidden_dim)
+        self.value = nn.Linear(input_dim, hidden_dim)
+        debug_print("AttentionMechanism init")
+        debug_print("input_dim", input_dim)
+        debug_print("hidden_dim", hidden_dim)
+
+    def forward(self, x: torch.Tensor):
+        q = self.query(x)
+        k = self.key(x)
+        v = self.value(x)
+        attn_scores = torch.matmul(q, k.transpose(-2, -1)) / (k.size(-1) ** 0.5)
+        attn_weights = torch.softmax(attn_scores, dim=-1)
+        attended = torch.matmul(attn_weights, v)
+        debug_print("attended shape", attended.shape)
+        return attended, attn_weights
+
+# کلاس ساده برای SignalModulation (پیاده‌سازی اولیه با sigmoid modulation)
+class SignalModulation(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+        self.modulation_weight = nn.Parameter(torch.randn(dim))
+        self.noise_filter = nn.Linear(dim, dim)  # فیلتر ساده
+        debug_print("SignalModulation init")
+        debug_print("dim", dim)
+
+    def forward(self, x: torch.Tensor):
+        modulation_sigmoid = torch.sigmoid(self.modulation_weight)
+        modulated = x * modulation_sigmoid.unsqueeze(0)
+        filtered = self.noise_filter(modulated)
+        debug_print("modulated shape", modulated.shape)
+        return filtered
+
+# کلاس DominoEffect (از کدهای قبلی، اصلاح‌شده)
+class DominoEffect(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+        self.dim = dim
+        self.domino_connections = nn.Parameter(torch.randn(dim, dim))
+        self.thresholds = nn.Parameter(torch.rand(dim))
+        debug_print("DominoEffect init")
+        debug_print("dim", dim)
+        debug_print("thresholds sample", self.thresholds[:3])
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        batch_size = x.size(0)
+        current_activation = torch.sigmoid(x)
+        for step in range(3):  # 3 مرحله انتشار
+            new_activation = torch.matmul(current_activation, self.domino_connections)
+            new_activation = torch.where(new_activation > self.thresholds.unsqueeze(0).expand(batch_size, -1),
+                                         new_activation, torch.zeros_like(new_activation))
+            current_activation = 0.7 * current_activation + 0.3 * new_activation
+            debug_print(f"domino_step {step+1} activation mean", current_activation.mean())
+        return current_activation
+
+# کلاس BrainHemisphere (اصلاح‌شده - بر اساس ساختار دو نیمکره‌ای PCT/IR2025/050026)
+class BrainHemisphere(nn.Module):
+    def __init__(self, input_dim: int, hidden_dim: int, output_dim: int, hemisphere_type: str):
+        super().__init__()
+        self.hemisphere_type = hemisphere_type
+        self.processing_layer = nn.Linear(input_dim, hidden_dim)
+        self.domino_layer = DominoEffect(hidden_dim)
+        self.output_layer = nn.Linear(hidden_dim, output_dim)
+        if hemisphere_type == "left":
+            self.specialty_weight = torch.tensor([1.2, 0.8])  # logical/analytical
+            specialty_desc = "Logical/Analytical"
+        elif hemisphere_type == "right":
+            self.specialty_weight = torch.tensor([0.8, 1.2])  # holistic/creative
+            specialty_desc = "Holistic/Creative"
+        else:
+            raise ValueError("Invalid hemisphere_type")
+        debug_print("BrainHemisphere init")
+        debug_print("hemisphere_type", hemisphere_type)
+        debug_print("specialty_weight", self.specialty_weight)
+        debug_print("specialty_description", specialty_desc)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        debug_print(f"\n=== BrainHemisphere ({self.hemisphere_type}) Forward ===")
+        debug_print("input x shape", x.shape)
+        debug_print("input x sample", x[0, :3] if x.dim() > 1 else x[:3])
+        hidden = torch.relu(self.processing_layer(x))
+        domino_output = self.domino_layer(hidden)
+        output = self.output_layer(domino_output)
+        specialty_expanded = self.specialty_weight.unsqueeze(0).expand(x.size(0), -1)
+        specialized_output = output * specialty_expanded
+        return specialized_output
+
+# کلاس CorpusCallosum (اصلاح‌شده با میانگین واقعی - ادغام نیمکره‌ها بر اساس PCT/IR2025/050026)
+class CorpusCallosum(nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+        self.dim = dim
+        self.cross_connection = nn.Linear(dim * 2, dim)
+        self.integration_weight = nn.Parameter(torch.tensor(0.5))
+        debug_print("CorpusCallosum init")
+        debug_print("dim", dim)
+        debug_print("integration_weight", self.integration_weight.item())
+
+    def forward(self, left_output: torch.Tensor, right_output: torch.Tensor) -> torch.Tensor:
+        assert left_output.shape == right_output.shape, "Hemisphere outputs must match shape"
+        debug_print("\n=== CorpusCallosum Forward ===")
+        combined = torch.cat([left_output, right_output], dim=-1)
+        integrated = self.cross_connection(combined)
+        integration_w = self.integration_weight
+        hemisphere_avg = (left_output + right_output) / 2  # میانگین واقعی
+        final_output = hemisphere_avg * integration_w + integrated * (1 - integration_w)
+        return final_output
+
+# کلاس ProjectionNeurons (اصلاح‌شده)
+class ProjectionNeurons(nn.Module):
+    def __init__(self, input_dim: int, output_dim: int):
+        super().__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.projection = nn.Linear(input_dim, output_dim)
+        self.activation_modulation = nn.Parameter(torch.ones(output_dim))
+        debug_print("ProjectionNeurons init")
+        debug_print("input_dim", input_dim)
+        debug_print("output_dim", output_dim)
+        debug_print("activation_modulation initial", self.activation_modulation[:3])
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        debug_print("\n=== ProjectionNeurons Forward ===")
+        debug_print("input x shape", x.shape)
+        debug_print("input x sample", x[0, :3] if x.dim() > 1 else x[:3])
+        projected = self.projection(x)
+        debug_print("projected shape", projected.shape)
+        debug_print("projected sample", projected[0, :3] if projected.dim() > 1 else projected[:3])
+        modulation_sigmoid = torch.sigmoid(self.activation_modulation)
+        debug_print("modulation_sigmoid sample", modulation_sigmoid[:3])
+        modulated = projected * modulation_sigmoid.unsqueeze(0).expand(x.size(0), -1)
+        debug_print("modulated shape", modulated.shape)
+        debug_print("modulated sample", modulated[0, :3] if modulated.dim() > 1 else modulated[:3])
+        return modulated
+
+# کلاس اصلی KingMazdaNetwork (اصلاح‌شده - مدل کامل بر اساس PCT/IR2025/050026)
+class KingMazdaNetwork(nn.Module):
+    def __init__(self, input_dim: int = 6, hidden_dim: int = 128, output_dim: int = 2):
+        super().__init__()
+        debug_print("KingMazdaNetwork init")
+        debug_print("input_dim", input_dim)
+        debug_print("hidden_dim", hidden_dim)
+        debug_print("output_dim", output_dim)
+        self.attention = AttentionMechanism(input_dim, hidden_dim)
+        self.signal_modulation = SignalModulation(hidden_dim)
+        self.projection_neurons = ProjectionNeurons(hidden_dim, hidden_dim)
+        self.left_hemisphere = BrainHemisphere(hidden_dim, hidden_dim, output_dim, "left")
+        self.right_hemisphere = BrainHemisphere(hidden_dim, hidden_dim, output_dim, "right")
+        self.corpus_callosum = CorpusCallosum(output_dim)
+        self.final_output = nn.Linear(output_dim, output_dim)
+        total_params = sum(p.numel() for p in self.parameters())
+        trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        debug_print("total_parameters", total_params)
+        debug_print("trainable_parameters", trainable_params)
+
+    def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
+        debug_print("\n" + "="*60)
+        debug_print("KING MAZDA NETWORK FORWARD PASS START")
+        debug_print("="*60)
+        debug_print("network_input shape", x.shape)
+        debug_print("network_input sample", x[0] if x.dim() > 1 else x[:6])
+        attended_input, attention_weights = self.attention(x)
+        modulated_signal = self.signal_modulation(attended_input)
+        projected_signal = self.projection_neurons(modulated_signal)
+        left_output = self.left_hemisphere(projected_signal)
+        right_output = self.right_hemisphere(projected_signal)
+        integrated_output = self.corpus_callosum(left_output, right_output)
+        final_out = torch.sigmoid(self.final_output(integrated_output))
+        debug_print("\n=== FINAL NETWORK OUTPUT ===")
+        debug_print("final_output shape", final_out.shape)
+        debug_print("final_output sample", final_out[0])
+        debug_print("="*60)
+        debug_print("KING MAZDA NETWORK FORWARD PASS END")
+        debug_print("="*60)
+        return {
+            'final_output': final_out,
+            'left_hemisphere': left_output,
+            'right_hemisphere': right_output,
+            'integrated': integrated_output,
+            'attention_weights': attention_weights,
+            'attended_input': attended_input,
+            'modulated_signal': modulated_signal,
+            'projected_signal': projected_signal
+        }
+
+# تابع تست (اصلاح‌شده با seed و assert)
+def test_king_mazda_network_debug():
+    """تست دیتیل شبکه King Mazda با دیباگ کامل"""
+    print("🧠 KING MAZDA NETWORK DEBUG TEST")
+    print("=" * 80)
+    torch.manual_seed(42)  # برای reproducibility
+    debug_print("Creating KingMazdaNetwork")
+    model = KingMazdaNetwork(input_dim=6, hidden_dim=16, output_dim=2)  # کوچک برای دیباگ
+    batch_size = 2
+    test_input = torch.randn(batch_size, 6) * 0.5
+    debug_print("test_input created")
+    debug_print("batch_size", batch_size)
+    debug_print("test_input shape", test_input.shape)
+    debug_print("test_input values", test_input)
+    debug_print("\nStarting network forward pass...")
+    with torch.no_grad():
+        results = model(test_input)
+    assert 'final_output' in results, "Final output missing"
+    print("\n" + "="*80)
+    print("📊 RESULTS SUMMARY")
+    print("="*80)
+    for key, value in results.items():
+        if isinstance(value, torch.Tensor):
+            print(f"• {key}:")
+            print(f" Shape: {value.shape}")
+            print(f" Sample values: {value[0].detach().numpy()}")
+            print(f" Range: [{value.min().item():.4f}, {value.max().item():.4f}]")
+            print(f" Mean: {value.mean().item():.4f}")
+            print()
+
+# اجرای تست (کامنت‌شده؛ برای اجرا uncomment کنید)
+# test_king_mazda_network_debug()
+ is a basic workflow to help you get started with Actions
 
 name: CI
 
