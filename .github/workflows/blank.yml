@@ -1,5 +1,4 @@
-# import torch
-import.nn as nn
+
 
 # تابع کمکی دیباگ (اصلاح‌شده برای مدیریت تنسورهای بزرگ/کوچک)
 def debug_print(label, value=None):
