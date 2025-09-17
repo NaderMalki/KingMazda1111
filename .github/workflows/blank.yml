@@ -276,3 +276,36 @@ on:
         run: |
           echo Add other actions to build,
           echo test, and deploy your project.
+
+          from qiskit import QuantumCircuit, Aer, execute
+from qiskit.circuit.library import ZZFeatureMap, RealAmplitudes
+import numpy as np
+
+num_qubits = 4
+qc = QuantumCircuit(num_qubits)
+
+feature_map = ZZFeatureMap(feature_dimension=num_qubits, reps=1)
+qc.append(feature_map, range(num_qubits))
+
+for i in range(num_qubits - 1):
+    qc.cx(i, i+1)
+
+qc.rz(-np.pi * 72 / 180, range(num_qubits))
+
+variational = RealAmplitudes(num_qubits, reps=1)
+qc.append(variational, range(num_qubits))
+
+qc.measure_all()
+
+# مقداردهی پارامترها به صورت جداگانه
+feature_params = np.random.rand(feature_map.num_parameters)
+variational_params = np.random.rand(variational.num_parameters)
+
+# ترکیب تمام پارامترها
+all_params = np.concatenate([feature_params, variational_params])
+qc = qc.assign_parameters(all_params)
+
+backend = Aer.get_backend('qasm_simulator')
+result = execute(qc, backend, shots=1024).result()
+counts = result.get_counts()
+print(counts)
