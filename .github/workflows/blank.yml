@@ -236,11 +236,7 @@ def test_king_mazda_network_debug():
             print(f" Sample values: {value[0].detach().numpy()}")
             print(f" Range: [{value.min().item():.4f}, {value.max().item():.4f}]")
             print(f" Mean: {value.mean().item():.4f}")
-            print()
-
-# اجرای تست (کامنت‌شده؛ برای اجرا uncomment کنید)
-# test_king_mazda_network_debug()
- is a basic workflow to help you get started with Actions
+    
 
 name: CI
 
