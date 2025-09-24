@@ -2,62 +2,10 @@
 #import torch
 #import torch.nn as nn
 
-# تابع کمکی دیباگ (اصلاح‌شده برای مدیریت تنسورهای بزرگ/کوچک)
-def debug_print(label, value=None):
-  #  """تابع استاندارد دیباگ"""#
-    if value is not None:
-        if isinstance(value, torch.Tensor):
-            if value.numel() > 10:
-                # برای تنسورهای بزرگ: آمار
-                debug_line = f"[DEBUG] {label}: shape={value.shape}, dtype={value.dtype}, device={value.device}, "
-                debug_line += f"mean={value.mean().item():.4f}, std={value.std().item():.4f}"
-            else:
-                # برای تنسورهای کوچک: مقادیر کامل
-                numpy_val = value.detach().cpu().numpy() if value.requires_grad else value.cpu().numpy()
-                debug_line = f"[DEBUG] {label}: {numpy_val}"
-        else:
-            debug_line = f"[DEBUG] {label}: {value}"
-    else:
-        debug_line = f"[DEBUG] === {label} ==="
-    print(debug_line)
+
 
 # کلاس ساده برای AttentionMechanism (پیاده‌سازی اولیه بر اساس self-attention)
-class AttentionMechanism(nn.Module):
-    def init(self, input_dim: int, hidden_dim: int):
-        super().__init__()
-        self.query = nn.Linear(input_dim, hidden_dim)
-        self.key = nn.Linear(input_dim, hidden_dim)
-        self.value = nn.Linear(input_dim, hidden_dim)
-        debug_print("AttentionMechanism init")
-        debug_print("input_dim", input_dim)
-        debug_print("hidden_dim", hidden_dim)
-
-    def forward(self, x: torch.Tensor):
-        q = self.query(x)
-        k = self.key(x)
-        v = self.value(x)
-        attn_scores = torch.matmul(q, k.transpose(-2, -1)) / (k.size(-1) ** 0.5)
-        attn_weights = torch.softmax(attn_scores, dim=-1)
-        attended = torch.matmul(attn_weights, v)
-        debug_print("attended shape", attended.shape)
-        return attended, attn_weights
-
-# کلاس ساده برای SignalModulation (پیاده‌سازی اولیه با sigmoid modulation)
-class SignalModulation(nn.Module):
-    def init(self, dim: int):
-        super().__init__()
-        self.modulation_weight = nn.Parameter(torch.randn(dim))
-        self.noise_filter = nn.Linear(dim, dim)  # فیلتر ساده
-        debug_print("SignalModulation init")
-        debug_print("dim", dim)
-
-    def forward(self, x: torch.Tensor):
-        modulation_sigmoid = torch.sigmoid(self.modulation_weight)
-        modulated = x * modulation_sigmoid.unsqueeze(0)
-        filtered = self.noise_filter(modulated)
-        debug_print("modulated shape", modulated.shape)
-        return filtered
-
+class 
 # کلاس DominoEffect (از کدهای قبلی، اصلاح‌شده)
 class DominoEffect(nn.Module):
     def init(self, dim: int):
