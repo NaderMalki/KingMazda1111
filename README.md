@@ -191,3 +191,50 @@ class ProjectionNeurons(nn.Module):
         debug_print("modulated shape", modulated.shape)
         debug_print("modulated sample", modulated[0, :3] if modulated.dim() > 1 else modulated[:3])
         return modulated
+        import numpy as np
+import matplotlib.pyplot as plt
+
+# پارامترها (مقادیر ثابت)
+PARAMS = {
+    'd33': 2.5e-10,           # C/N
+    'thickness_m': 0.001,     # m
+    'spring_k': 1000,         # N/m
+    'damping_c': 10,          # Ns/m
+    'capacitance_C': 1e-6,    # Farad
+    'radius': 0.01            # m
+}
+
+# زمان و جابجایی
+time = np.linspace(0, 1, 500)
+x = 0.01 * np.sin(2 * np.pi * 5 * time)
+dx_dt = np.gradient(x, time)
+
+# محاسبات
+cross_section = np.pi * PARAMS['radius'] ** 2
+F_mech = PARAMS['spring_k'] * x + PARAMS['damping_c'] * dx_dt
+sigma = F_mech / cross_section
+Q = PARAMS['d33'] * F_mech
+V = Q / PARAMS['capacitance_C']
+
+# رسم نمودارها
+fig, axs = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
+
+axs[0].plot(time, V * 1e3)
+axs[0].set_ylabel('ولتاژ (mV)')
+axs[0].set_title('ولتاژ پیزوالکتریک بر حسب زمان')
+axs[0].grid(True, alpha=0.3)
+
+axs[1].plot(time, F_mech)
+axs[1].set_ylabel('نیرو (N)')
+axs[1].set_title('نیروی مکانیکی بر حسب زمان')
+axs[1].grid(True, alpha=0.3)
+
+axs[2].plot(time, sigma / 1e6)
+axs[2].set_ylabel('فشار (MPa)')
+axs[2].set_xlabel('زمان (s)')
+axs[2].set_title('فشار بر حسب زمان')
+axs[2].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.savefig('piezoelectric_model.png') 
+plt.close()
