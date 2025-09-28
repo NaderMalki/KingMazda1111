@@ -238,3 +238,5 @@ axs[2].grid(True, alpha=0.3)
 plt.tight_layout()
 plt.savefig('piezoelectric_model.png') 
 plt.close()
+
+pip install pytest pytest-cov
