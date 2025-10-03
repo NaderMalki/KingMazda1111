@@ -240,3 +240,23 @@ plt.savefig('piezoelectric_model.png')
 plt.close()
 
 pip install pytest pytest-cov
+King Mazda:
+all_sets = set(set1) | set(set2) | set(set3)
+print(all_sets)
+# خروجی: {1, 2, 3, 4, 5, 6, 7, 8}
+
+all_lists = [set1, set2, set3]
+all_sets = set().union(*all_lists)
+
+def combine_and_remove_duplicates(*collections):
+    return set().union(*collections)
+
+# تست ساده:
+result = combine_and_remove_duplicates(set1, set2, set3)
+assert result == {1, 2, 3, 4, 5, 6, 7, 8}
+print("Test passed!")
+
+set4 = [8, 8, 9]
+result = combine_and_remove_duplicates(set1, set2, set3, set4)
+assert result == {1,2,3,4,5,6,7,8,9}
+print("Test 2 passed!")
