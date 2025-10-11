@@ -1,262 +1,89 @@
-#PCT/IR2025/050026/Nader.malki
-#import torch
-#import torch.nn as nn
 
+#PCT/IR2025/050026.nader.malki
+class HyperbolicBlock(Layer):
+    def init(self, units=8, kwargs):
+        super(HyperbolicBlock, self).__init__(kwargs)
+        self.dense = Dense(units, activation='linear')
+    
+    def call(self, x):
+        x = self.dense(x)
+        return hyperbolic_activation(x)
 
+# ----------------------------
+# 4. مکانیزم توجه پویا بین بلوک‌ها
+# ----------------------------
+class CrossAttentionFusion(Layer):
+    def init(self, kwargs):
+        super(CrossAttentionFusion, self).__init__(kwargs)
+        self.w_q = Dense(8)  # query
+        self.w_k = Dense(8)  # key
+        self.w_v = Dense(8)  # value
 
-# کلاس ساده برای AttentionMechanism (پیاده‌سازی اولیه بر اساس self-attention)
-class 
-# کلاس DominoEffect (از کدهای قبلی، اصلاح‌شده)
-class DominoEffect(nn.Module):
-    def init(self, dim: int):
-        super().__init__()
-        self.dim = dim
-        self.domino_connections = nn.Parameter(torch.randn(dim, dim))
-        self.thresholds = nn.Parameter(torch.rand(dim))
-        debug_print("DominoEffect init")
-        debug_print("dim", dim)
-        debug_print("thresholds sample", self.thresholds[:3])
+    def call(self, linear_out, hyper_out):
+        # query از بلوک خطی، key/value از بلوک هذلولوی
+        Q = self.w_q(linear_out)
+        K = self.w_k(hyper_out)
+        V = self.w_v(hyper_out)
+        
+        # توجه ساده
+        attn_scores = tf.matmul(Q, K, transpose_b=True) / tf.math.sqrt(8.0)
+        attn_weights = tf.nn.softmax(attn_scores, axis=-1)
+        attended = tf.matmul(attn_weights, V)
+        
+        # فیوژن نهایی
+        fused = linear_out + attended
+        return fused
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        batch_size = x.size(0)
-        current_activation = torch.sigmoid(x)
-        for step in range(3):  # 3 مرحله انتشار
-            new_activation = torch.matmul(current_activation, self.domino_connections)
-            new_activation = torch.where(new_activation > self.thresholds.unsqueeze(0).expand(batch_size, -1),
-                                         new_activation, torch.zeros_like(new_activation))
-            current_activation = 0.7 * current_activation + 0.3 * new_activation
-            debug_print(f"domino_step {step+1} activation mean", current_activation.mean())
-        return current_activation
+# ----------------------------
+# 5. مونتاژ مدل
+# ----------------------------
+inputs = Input(shape=(4,), name='input')
 
-# کلاس BrainHemisphere (اصلاح‌شده - بر اساس ساختار دو نیمکره‌ای PCT/IR2025/050026)
-class BrainHemisphere(nn.Module):
-    def init(self, input_dim: int, hidden_dim: int, output_dim: int, hemisphere_type: str):
-        super().__init__()
+# مرحله 1: پردازش ورودی
+proj1, proj2, modulated = InputProcessor(proj_dim=8, name='input_processor')(inputs)
 
-# کلاس اصلی KingMazdaNetwork (اصلاح‌شده - مدل کامل بر اساس PCT/IR2025/050026)
-class KingMazdaNetwork(nn.Module):
-    def init(self, input_dim: int = 6, hidden_dim: int = 128, output_dim: int = 2):
-        super().__init__()
-        debug_print("KingMazdaNetwork init")
-        debug_print("input_dim", input_dim)
-        debug_print("hidden_dim", hidden_dim)
-        debug_print("output_dim", output_dim)
-        self.attention = AttentionMechanism(input_dim, hidden_dim)
-        self.signal_modulation = SignalModulation(hidden_dim)
-        self.projection_neurons = ProjectionNeurons(hidden_dim, hidden_dim)
-        self.left_hemisphere = BrainHemisphere(hidden_dim, hidden_dim, output_dim, "left")
-        self.right_hemisphere = BrainHemisphere(hidden_dim, hidden_dim, output_dim, "right")
-        self.corpus_callosum = CorpusCallosum(output_dim)
-        self.final_output = nn.Linear(output_dim, output_dim)
-        total_params = sum(p.numel() for p in self.parameters())
-        trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        debug_print("total_parameters", total_params)
-        debug_print("trainable_parameters", trainable_params)
+# مرحله 2: دو بلوک موازی
+linear_branch = Dense(8, activation='linear', name='linear_branch')(modulated)
+hyper_branch = HyperbolicBlock(units=8, name='hyperbolic_branch')(modulated)
 
-    def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
-        debug_print("\n" + "="*60)
-        debug_print("KING MAZDA NETWORK FORWARD PASS START")
-        debug_print("="*60)
-        debug_print("network_input shape", x.shape)
-        debug_print("network_input sample", x[0] if x.dim() > 1 else x[:6])
-        attended_input, attention_weights = self.attention(x)
-        modulated_signal = self.signal_modulation(attended_input)
-        projected_signal = self.projection_neurons(modulated_signal)
-        left_output = self.left_hemisphere(projected_signal)
-        right_output = self.right_hemisphere(projected_signal)
-        integrated_output = self.corpus_callosum(left_output, right_output)
-        final_out = torch.sigmoid(self.final_output(integrated_output))
-        debug_print("\n=== FINAL NETWORK OUTPUT ===")
-        debug_print("final_output shape", final_out.shape)
-        debug_print("final_output sample", final_out[0])
-        debug_print("="*60)
-        debug_print("KING MAZDA NETWORK FORWARD PASS END")
-        debug_print("="*60)
-        return {
-            'final_output': final_out,
-            'left_hemisphere': left_output,
-            'right_hemisphere': right_output,
-            'integrated': integrated_output,
-            'attention_weights': attention_weights,
-            'attended_input': attended_input,
-            'modulated_signal': modulated_signal,
-            'projected_signal': projected_signal
-        }
+# مرحله 3: تبادل اطلاعات با توجه پویا
+fused = CrossAttentionFusion(name='cross_attention')([linear_branch, hyper_branch])
 
-# تابع تست (اصلاح‌شده با seed و assert)
-def test_king_mazda_network_debug():
-    """تست دیتیل شبکه King Mazda با دیباگ کامل"""
-    print("🧠 KING MAZDA NETWORK DEBUG TEST")
-    print("=" * 80)
-    torch.manual_seed(42)  # برای reproducibility
-    debug_print("Creating KingMazdaNetwork")
-    model = KingMazdaNetwork(input_dim=6, hidden_dim=16, output_dim=2)  # کوچک برای دیباگ
-    batch_size = 2
-    test_input = torch.randn(batch_size, 6) * 0.5
-    debug_print("test_input created")
-    debug_print("batch_size", batch_size)
-    debug_print("test_input shape", test_input.shape)
-    debug_print("test_input values", test_input)
-    debug_print("\nStarting network forward pass...")
-    with torch.no_grad():
-        results = model(test_input)
-    assert 'final_output' in results, "Final output missing"
-    print("\n" + "="*80)
-    print("📊 RESULTS SUMMARY")
-    print("="*80)
-    for key, value in results.items():
-        if isinstance(value, torch.Tensor):
-            print(f"• {key}:")
-            print(f" Shape: {value.shape}")
-            print(f" Sample values: {value[0].detach().numpy()}")
-            print(f" Range: [{value.min().item():.4f}, {value.max().item():.4f}]")
-            print(f" Mean: {value.mean().item():.4f}")
-            print()
+# مرحله 4: خروجی
+outputs = Dense(3, activation='softmax', name='output')(fused)
 
-# اجرای تست (کامنت‌شده؛ برای اجرا uncomment کنید)
-# test_king_mazda_network_debug()
+model = Model(inputs=inputs, outputs=outputs)
 
-self.hemisphere_type = hemisphere_type
-        self.processing_layer = nn.Linear(input_dim, hidden_dim)
-        self.domino_layer = DominoEffect(hidden_dim)
-        self.output_layer = nn.Linear(hidden_dim, output_dim)
-        if hemisphere_type == "left":
-            self.specialty_weight = torch.tensor([1.2, 0.8])  # logical/analytical
-            specialty_desc = "Logical/Analytical"
-        elif hemisphere_type == "right":
-            self.specialty_weight = torch.tensor([0.8, 1.2])  # holistic/creative
-            specialty_desc = "Holistic/Creative"
-        else:
-            raise ValueError("Invalid hemisphere_type")
-        debug_print("BrainHemisphere init")
-        debug_print("hemisphere_type", hemisphere_type)
-        debug_print("specialty_weight", self.specialty_weight)
-        debug_print("specialty_description", specialty_desc)
+# کامپایل
+model.compile(
+    optimizer=Adam(learning_rate=0.001),
+    loss='categorical_crossentropy',
+    metrics=['accuracy']
+)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        debug_print(f"\n=== BrainHemisphere ({self.hemisphere_type}) Forward ===")
-        debug_print("input x shape", x.shape)
-        debug_print("input x sample", x[0, :3] if x.dim() > 1 else x[:3])
-        hidden = torch.relu(self.processing_layer(x))
-        domino_output = self.domino_layer(hidden)
-        output = self.output_layer(domino_output)
-        specialty_expanded = self.specialty_weight.unsqueeze(0).expand(x.size(0), -1)
-        specialized_output = output * specialty_expanded
-        return specialized_output
+print("✅ معماری مدل با موفقیت ساخته شد!")
+model.summary()
 
-# کلاس CorpusCallosum (اصلاح‌شده با میانگین واقعی - ادغام نیمکره‌ها بر اساس PCT/IR2025/050026)
-class CorpusCallosum(nn.Module):
-    def init(self, dim: int):
-        super().__init__()
-        self.dim = dim
-        self.cross_connection = nn.Linear(dim * 2, dim)
-        self.integration_weight = nn.Parameter(torch.tensor(0.5))
-        debug_print("CorpusCallosum init")
-        debug_print("dim", dim)
-        debug_print("integration_weight", self.integration_weight.item())
+# ----------------------------
+# 6. آموزش و تست
+# ----------------------------
+history = model.fit(
+    X_train, y_train,
+    validation_data=(X_test, y_test),
+    epochs=80,
+    batch_size=8,
+    verbose=1
+)
 
-    def forward(self, left_output: torch.Tensor, right_output: torch.Tensor) -> torch.Tensor:
-        assert left_output.shape == right_output.shape, "Hemisphere outputs must match shape"
-        debug_print("\n=== CorpusCallosum Forward ===")
-        combined = torch.cat([left_output, right_output], dim=-1)
-        integrated = self.cross_connection(combined)
-        integration_w = self.integration_weight
-        hemisphere_avg = (left_output + right_output) / 2  # میانگین واقعی
-        final_output = hemisphere_avg * integration_w + integrated * (1 - integration_w)
-        return final_output
+# ارزیابی
+test_acc = model.evaluate(X_test, y_test, verbose=0)[1]
+print(f"\n🎯 دقت نهایی تست: {test_acc:.4f}")
 
-# کلاس ProjectionNeurons (اصلاح‌شده)
-class ProjectionNeurons(nn.Module):
-    def init(self, input_dim: int, output_dim: int):
-        super().__init__()
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-        self.projection = nn.Linear(input_dim, output_dim)
-        self.activation_modulation = nn.Parameter(torch.ones(output_dim))
-        debug_print("ProjectionNeurons init")
-        debug_print("input_dim", input_dim)
-        debug_print("output_dim", output_dim)
-        debug_print("activation_modulation initial", self.activation_modulation[:3])
+# تست یک نمونه
+sample = X_test[:1]
+pred = model.predict(sample)
+print(f"\n🧪 پیش‌بینی نمونه: {pred[0]} → کلاس: {np.argmax(pred)}")
+`
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        debug_print("\n=== ProjectionNeurons Forward ===")
-        debug_print("input x shape", x.shape)
-        debug_print("input x sample", x[0, :3] if x.dim() > 1 else x[:3])
-        projected = self.projection(x)
-        debug_print("projected shape", projected.shape)
-        debug_print("projected sample", projected[0, :3] if projected.dim() > 1 else projected[:3])
-        modulation_sigmoid = torch.sigmoid(self.activation_modulation)
-        debug_print("modulation_sigmoid sample", modulation_sigmoid[:3])
-        modulated = projected * modulation_sigmoid.unsqueeze(0).expand(x.size(0), -1)
-        debug_print("modulated shape", modulated.shape)
-        debug_print("modulated sample", modulated[0, :3] if modulated.dim() > 1 else modulated[:3])
-        return modulated
-        import numpy as np
-import matplotlib.pyplot as plt
+---
 
-# پارامترها (مقادیر ثابت)
-PARAMS = {
-    'd33': 2.5e-10,           # C/N
-    'thickness_m': 0.001,     # m
-    'spring_k': 1000,         # N/m
-    'damping_c': 10,          # Ns/m
-    'capacitance_C': 1e-6,    # Farad
-    'radius': 0.01            # m
-}
-
-# زمان و جابجایی
-time = np.linspace(0, 1, 500)
-x = 0.01 * np.sin(2 * np.pi * 5 * time)
-dx_dt = np.gradient(x, time)
-
-# محاسبات
-cross_section = np.pi * PARAMS['radius'] ** 2
-F_mech = PARAMS['spring_k'] * x + PARAMS['damping_c'] * dx_dt
-sigma = F_mech / cross_section
-Q = PARAMS['d33'] * F_mech
-V = Q / PARAMS['capacitance_C']
-
-# رسم نمودارها
-fig, axs = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
-
-axs[0].plot(time, V * 1e3)
-axs[0].set_ylabel('ولتاژ (mV)')
-axs[0].set_title('ولتاژ پیزوالکتریک بر حسب زمان')
-axs[0].grid(True, alpha=0.3)
-
-axs[1].plot(time, F_mech)
-axs[1].set_ylabel('نیرو (N)')
-axs[1].set_title('نیروی مکانیکی بر حسب زمان')
-axs[1].grid(True, alpha=0.3)
-
-axs[2].plot(time, sigma / 1e6)
-axs[2].set_ylabel('فشار (MPa)')
-axs[2].set_xlabel('زمان (s)')
-axs[2].set_title('فشار بر حسب زمان')
-axs[2].grid(True, alpha=0.3)
-
-plt.tight_layout()
-plt.savefig('piezoelectric_model.png') 
-plt.close()
-
-pip install pytest pytest-cov
-King Mazda:
-all_sets = set(set1) | set(set2) | set(set3)
-print(all_sets)
-# خروجی: {1, 2, 3, 4, 5, 6, 7, 8}
-
-all_lists = [set1, set2, set3]
-all_sets = set().union(*all_lists)
-
-def combine_and_remove_duplicates(*collections):
-    return set().union(*collections)
-
-# تست ساده:
-result = combine_and_remove_duplicates(set1, set2, set3)
-assert result == {1, 2, 3, 4, 5, 6, 7, 8}
-print("Test passed!")
-
-set4 = [8, 8, 9]
-result = combine_and_remove_duplicates(set1, set2, set3, set4)
-assert result == {1,2,3,4,5,6,7,8,9}
-print("Test 2 passed!")
