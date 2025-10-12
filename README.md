@@ -137,4 +137,12 @@ I ran this test with the following configuration:
 > - S4 is the least error-prone.
 > - SNN is the least power-efficient.
 
+precision    recall  f1-score   support
 
+      setosa       1.00      1.00      1.00        19
+  versicolor       1.00      1.00      1.00        13
+   virginica       1.00      1.00      1.00        13
+
+    accuracy                           1.00        45
+   macro avg       1.00      1.00      1.00        45
+weighted avg       1.00      1.00      1.00        45
