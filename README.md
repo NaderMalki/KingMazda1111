@@ -46,24 +46,7 @@ model.add(MaxPooling2D(POOL_SHAPE))
 model.add(Flatten())
 model.add(Dense(FULLY_CONNECT_NUM, activation='relu'))
 model.add(Dense(NUM_CLASSES, activation='softmax'))
-
-    
-	plt.figure(figsize=(12, 12))
-	for i in range(nb_samples):
-    	plt.subplot(nb_row, nb_row, i + 1)
-    	plt.xticks([])
-    	plt.yticks([])
-    	plt.grid(False)
-    	plt.imshow(train_images[i], cmap=plt.cm.binary)
-    	plt.xlabel(class_names[train_labels[i][0]])
-	plt.show()
-
-class_names = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck'] 
-
-show_images(train_images, class_names, train_labels)
-
-        
-        # Attention for combining non-linear patterns
+# Attention for combining non-linear patterns
         self.pattern_attention = AttentionMechanism(output_dim)
         
         # Final projection
@@ -132,7 +115,6 @@ class InterhemisphericExchange(nn.Module):
         enhanced_right = right_features + right_gate * left_to_right_attn
         
         return enhanced_left, enhanced_right
-        
 
 class DualHemisphereNetwork(nn.Module):
     """Main dual hemisphere neural network architecture"""
@@ -154,13 +136,12 @@ class DualHemisphereNetwork(nn.Module):
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
-            nn.AdaptiveAvgPool2d((4, 4))
+            nn.AdaptiveAvgPool2d((3, 3))
         )
         
         # Calculate flattened feature size
-        self.feature_size = 128 * 4 * 4  # 2048
-
-# Normalization and noise reduction
+        self.feature_size = 128 * 3 * 3 # 2048
+    # Normalization and noise reduction
         self.feature_normalizer = nn.LayerNorm(self.feature_size)
         self.noise_reduction = nn.Sequential(
             nn.Linear(self.feature_size, self.feature_size),
@@ -253,112 +234,9 @@ class DualHemisphereNetwork(nn.Module):
             left_features = self.left_hemisphere(features)
             right_features = self.right_hemisphere(features)
             
-            
-
-class AttentionMechanism(nn.Module):
-    """Dynamic attention mechanism for dual hemisphere network"""
-    def init(self, feature_dim):
-        super(AttentionMechanism, self).__init__()
-        self.feature_dim = feature_dim
-        self.attention = nn.Sequential(
-            nn.Linear(feature_dim, feature_dim // 2),
-            nn.ReLU(),
-            nn.Linear(feature_dim // 2, feature_dim),
-            nn.Sigmoid()
-        )
-    
-    def forward(self, x):
-        # Compute attention weights
-        attention_weights = self.attention(x)
-        # Apply attention
-        return x * attention_weights, attention_weights
-
-class SynapticPlasticity(nn.Module):
-    """Adaptive synaptic plasticity learning module"""
-    def init(self, input_dim, output_dim):
-        super(SynapticPlasticity, self).__init__()
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-        
-        # Base weights
-        self.base_weight = nn.Parameter(torch.randn(output_dim, input_dim))
-        
-        # Plasticity parameters
-        self.plasticity_rate = nn.Parameter(torch.ones(output_dim, input_dim) * 0.01)
-        self.decay_factor = nn.Parameter(torch.ones(output_dim, input_dim) * 0.99)
-        
-        # Adaptive weights
-        self.register_buffer('adaptive_weights', torch.zeros(output_dim, input_dim))
-    
-    def forward(self, x):
-        # Update adaptive weights based on input activity
-        input_activity = x.mean(dim=0, keepdim=True)  # Average across batch
-        
-        # Hebbian-like learning rule
-        weight_update = self.plasticity_rate * torch.outer(
-            input_activity.mean(), input_activity.squeeze()
-        )
-        
-        # Update adaptive weights with decay
-        self.adaptive_weights = self.adaptive_weights * self.decay_factor + weight_update
-        
-        # Combine base and adaptive weights
-        total_weights = self.base_weight + self.adaptive_weights
-        
-        return F.linear(x, total_weights)
-
-class LeftHemisphereBlock(nn.Module):
-    """Left hemisphere block for linear patterns"""
-    def init(self, input_dim, output_dim):
-        super(LeftHemisphereBlock, self).__init__()
-        self.linear_processor = nn.Sequential(
-            nn.Linear(input_dim, output_dim),
-            nn.BatchNorm1d(output_dim),
-            nn.ReLU(),
-            nn.Dropout(0.2)
-        )
-        
-        # Sequence processing for linear patterns
-        self.sequence_processor = nn.LSTM(output_dim, output_dim // 2, batch_first=True)
-        self.output_projection = nn.Linear(output_dim // 2, output_dim)
-    
-    def forward(self, x):
-        # Linear processing
-        linear_features = self.linear_processor(x)
-        
-        # Reshape for sequence processing
-        batch_size = linear_features.size(0)
-        seq_features = linear_features.view(batch_size, 1, -1)
-        
-        # LSTM for sequential/linear pattern recognition
-        lstm_out, _ = self.sequence_processor(seq_features)
-        lstm_features = self.output_projection(lstm_out.squeeze(1))
-        
-        return lstm_features + linear_features  # Residual connection
-
-class RightHemisphereBlock(nn.Module):
-    """Right hemisphere block for non-linear patterns"""
-    def init(self, input_dim, output_dim):
-        super(RightHemisphereBlock, self).__init__()
-        
-        # Non-linear pattern extraction
-        self.nonlinear_layers = nn.ModuleList([
-            nn.Sequential(
-                nn.Linear(input_dim, output_dim),
-                nn.ReLU(),
-                nn.Dropout(0.1)
-            ),
-            nn.Sequential(
-                nn.Linear(input_dim, output_dim),
-                nn.Tanh(),
-    def call(self, x):
-        x = self.dense(x)
-        return hyperbolic_activation(x)
-
-# ----------------------------
-# 4. مکانیزم توجه پویا بین بلوک‌ها
-# ----------------------------
-class CrossAttentionFusion(Layer):
+            return left_features, right_features
+			
+	                                        # (Layer):
     def init(self, kwargs):
         super(CrossAttentionFusion, self).__init__(kwargs)
         self.w_q = Dense(8)  # query
