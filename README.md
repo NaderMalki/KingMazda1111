@@ -8,7 +8,311 @@ class HyperbolicBlock(Layer):
     def init(self, units=8, kwargs):
         super(HyperbolicBlock, self).__init__(kwargs)
         self.dense = Dense(units, activation='linear')
+        def __init__(self, ...):
+        
+    King Mazda:
+nn.Dropout(0.1)
+            ),
+            nn.Sequential(
+                nn.Linear(input_dim, output_dim),
+                nn.ELU(),
+                nn.Dropout(0.1)
+            )
+        ])
+        
+        # Attention for combining non-linear patterns
+        self.pattern_attention = AttentionMechanism(output_dim)
+        
+        # Final projection
+        self.fusion_layer = nn.Linear(output_dim * len(self.nonlinear_layers), output_dim)
     
+    def forward(self, x):
+        # Extract different non-linear patterns
+        patterns = []
+        for layer in self.nonlinear_layers:
+            pattern = layer(x)
+            patterns.append(pattern)
+        
+        # Concatenate patterns
+        combined_patterns = torch.cat(patterns, dim=1)
+        
+        # Project to output dimension
+        fused_features = self.fusion_layer(combined_patterns)
+        
+        # Apply attention
+        attended_features, attention_weights = self.pattern_attention(fused_features)
+        
+        return attended_features
+
+class InterhemisphericExchange(nn.Module):
+    """Information exchange layer between hemispheres"""
+    def init(self, feature_dim):
+        super(InterhemisphericExchange, self).__init__()
+        self.feature_dim = feature_dim
+        
+        # Cross-attention mechanisms
+        self.left_to_right = nn.MultiheadAttention(feature_dim, num_heads=8, batch_first=True)
+        self.right_to_left = nn.MultiheadAttention(feature_dim, num_heads=8, batch_first=True)
+        
+        # Gating mechanisms
+        self.left_gate = nn.Sequential(
+            nn.Linear(feature_dim * 2, feature_dim),
+            nn.Sigmoid()
+        )
+        self.right_gate = nn.Sequential(
+            nn.Linear(feature_dim * 2, feature_dim),
+            nn.Sigmoid()
+        )
+    
+    def forward(self, left_features, right_features):
+        # Reshape for attention (add sequence dimension)
+        left_seq = left_features.unsqueeze(1)
+        right_seq = right_features.unsqueeze(1)
+        
+        # Cross-attention
+        left_to_right_attn, _ = self.left_to_right(right_seq, left_seq, left_seq)
+        right_to_left_attn, _ = self.right_to_left(left_seq, right_seq, right_seq)
+        
+        # Remove sequence dimension
+        left_to_right_attn = left_to_right_attn.squeeze(1)
+        right_to_left_attn = right_to_left_attn.squeeze(1)
+        
+        # Gating mechanism
+        left_combined = torch.cat([left_features, right_to_left_attn], dim=1)
+        right_combined = torch.cat([right_features, left_to_right_attn], dim=1)
+        
+        left_gate = self.left_gate(left_combined)
+        right_gate = self.right_gate(right_combined)
+        
+        # Apply gates
+        enhanced_left = left_features + left_gate * right_to_left_attn
+        enhanced_right = right_features + right_gate * left_to_right_attn
+        
+        return enhanced_left, enhanced_right
+
+class DualHemisphereNetwork(nn.Module):
+    """Main dual hemisphere neural network architecture"""
+    def init(self, input_channels=3, num_classes=2, hidden_size=256):
+        super(DualHemisphereNetwork, self).__init__()
+        
+        # Feature extraction layers
+        self.feature_extractor = nn.Sequential(
+            nn.Conv2d(input_channels, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((4, 4))
+        )
+        
+        # Calculate flattened feature size
+        self.feature_size = 128 * 4 * 4  # 2048
+
+# Normalization and noise reduction
+        self.feature_normalizer = nn.LayerNorm(self.feature_size)
+        self.noise_reduction = nn.Sequential(
+            nn.Linear(self.feature_size, self.feature_size),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(self.feature_size, hidden_size)
+        )
+        
+        # Dual hemisphere blocks
+        self.left_hemisphere = LeftHemisphereBlock(hidden_size, hidden_size)
+        self.right_hemisphere = RightHemisphereBlock(hidden_size, hidden_size)
+        
+        # Interhemispheric exchange
+        self.interhemispheric_exchange = InterhemisphericExchange(hidden_size)
+        
+        # Synaptic plasticity layers
+        self.left_plasticity = SynapticPlasticity(hidden_size, hidden_size)
+        self.right_plasticity = SynapticPlasticity(hidden_size, hidden_size)
+        
+        # Dynamic attention
+        self.global_attention = AttentionMechanism(hidden_size * 2)
+        
+        # Classification head
+        self.classifier = nn.Sequential(
+            nn.Linear(hidden_size * 2, hidden_size),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(hidden_size, num_classes)
+        )
+        
+    def forward(self, x):
+        # Feature extraction
+        features = self.feature_extractor(x)
+        features = features.view(features.size(0), -1)
+        
+        # Normalization and noise reduction
+        features = self.feature_normalizer(features)
+        features = self.noise_reduction(features)
+        
+        # Dual hemisphere processing
+        left_features = self.left_hemisphere(features)
+        right_features = self.right_hemisphere(features)
+        
+        # Interhemispheric exchange
+        left_enhanced, right_enhanced = self.interhemispheric_exchange(left_features, right_features)
+        
+        # Synaptic plasticity
+        left_plastic = self.left_plasticity(left_enhanced)
+        right_plastic = self.right_plasticity(right_enhanced)
+        
+        # Combine hemispheres
+        combined_features = torch.cat([left_plastic, right_plastic], dim=1)
+        
+        # Global attention
+        attended_features, attention_weights = self.global_attention(combined_features)
+        
+        # Classification
+        output = self.classifier(attended_features)
+        
+        return output
+    
+    def get_attention_weights(self, x):
+        """Get attention weights for visualization"""
+        with torch.no_grad():
+            features = self.feature_extractor(x)
+            features = features.view(features.size(0), -1)
+            features = self.feature_normalizer(features)
+            features = self.noise_reduction(features)
+            
+            left_features = self.left_hemisphere(features)
+            right_features = self.right_hemisphere(features)
+            left_enhanced, right_enhanced = self.interhemispheric_exchange(left_features, right_features)
+            
+            left_plastic = self.left_plasticity(left_enhanced)
+            right_plastic = self.right_plasticity(right_enhanced)
+            combined_features = torch.cat([left_plastic, right_plastic], dim=1)
+            
+            _, attention_weights = self.global_attention(combined_features)
+            
+            return attention_weights
+    
+    def get_hemisphere_activations(self, x):
+        """Get hemisphere activations for analysis"""
+        with torch.no_grad():
+            features = self.feature_extractor(x)
+            features = features.view(features.size(0), -1)
+            features = self.feature_normalizer(features)
+            features = self.noise_reduction(features)
+            
+            left_features = self.left_hemisphere(features)
+            right_features = self.right_hemisphere(features)
+            
+            return left_features, right_features
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+#PCT/IR2025/050026.nader.malki
+
+class AttentionMechanism(nn.Module):
+    """Dynamic attention mechanism for dual hemisphere network"""
+    def init(self, feature_dim):
+        super(AttentionMechanism, self).__init__()
+        self.feature_dim = feature_dim
+        self.attention = nn.Sequential(
+            nn.Linear(feature_dim, feature_dim // 2),
+            nn.ReLU(),
+            nn.Linear(feature_dim // 2, feature_dim),
+            nn.Sigmoid()
+        )
+    
+    def forward(self, x):
+        # Compute attention weights
+        attention_weights = self.attention(x)
+        # Apply attention
+        return x * attention_weights, attention_weights
+
+class SynapticPlasticity(nn.Module):
+    """Adaptive synaptic plasticity learning module"""
+    def init(self, input_dim, output_dim):
+        super(SynapticPlasticity, self).__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        
+        # Base weights
+        self.base_weight = nn.Parameter(torch.randn(output_dim, input_dim))
+        
+        # Plasticity parameters
+        self.plasticity_rate = nn.Parameter(torch.ones(output_dim, input_dim) * 0.01)
+        self.decay_factor = nn.Parameter(torch.ones(output_dim, input_dim) * 0.99)
+        
+        # Adaptive weights
+        self.register_buffer('adaptive_weights', torch.zeros(output_dim, input_dim))
+    
+    def forward(self, x):
+        # Update adaptive weights based on input activity
+        input_activity = x.mean(dim=0, keepdim=True)  # Average across batch
+        
+        # Hebbian-like learning rule
+        weight_update = self.plasticity_rate * torch.outer(
+            input_activity.mean(), input_activity.squeeze()
+        )
+        
+        # Update adaptive weights with decay
+        self.adaptive_weights = self.adaptive_weights * self.decay_factor + weight_update
+        
+        # Combine base and adaptive weights
+        total_weights = self.base_weight + self.adaptive_weights
+        
+        return F.linear(x, total_weights)
+
+class LeftHemisphereBlock(nn.Module):
+    """Left hemisphere block for linear patterns"""
+    def init(self, input_dim, output_dim):
+        super(LeftHemisphereBlock, self).__init__()
+        self.linear_processor = nn.Sequential(
+            nn.Linear(input_dim, output_dim),
+            nn.BatchNorm1d(output_dim),
+            nn.ReLU(),
+            nn.Dropout(0.2)
+        )
+        
+        # Sequence processing for linear patterns
+        self.sequence_processor = nn.LSTM(output_dim, output_dim // 2, batch_first=True)
+        self.output_projection = nn.Linear(output_dim // 2, output_dim)
+    
+    def forward(self, x):
+        # Linear processing
+        linear_features = self.linear_processor(x)
+        
+        # Reshape for sequence processing
+        batch_size = linear_features.size(0)
+        seq_features = linear_features.view(batch_size, 1, -1)
+        
+        # LSTM for sequential/linear pattern recognition
+        lstm_out, _ = self.sequence_processor(seq_features)
+        lstm_features = self.output_projection(lstm_out.squeeze(1))
+        
+        return lstm_features + linear_features  # Residual connection
+
+class RightHemisphereBlock(nn.Module):
+    """Right hemisphere block for non-linear patterns"""
+    def init(self, input_dim, output_dim):
+        super(RightHemisphereBlock, self).__init__()
+        
+        # Non-linear pattern extraction
+        self.nonlinear_layers = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(input_dim, output_dim),
+                nn.ReLU(),
+                nn.Dropout(0.1)
+            ),
+            nn.Sequential(
+                nn.Linear(input_dim, output_dim),
+                nn.Tanh(),
     def call(self, x):
         x = self.dense(x)
         return hyperbolic_activation(x)
