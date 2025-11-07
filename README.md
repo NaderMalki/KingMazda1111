@@ -11,7 +11,6 @@ class HyperbolicBlock(Layer):
         self.dense = Dense(units, activation='linear')
         def __init__(self, ...):
         
-    King Mazda:
 nn.Dropout(0.1)
             ),
             nn.Sequential(
@@ -20,6 +19,49 @@ nn.Dropout(0.1)
                 nn.Dropout(0.1)
             )
         ])
+        import matplotlib.pyplot as plt
+
+def show_images(train_images,
+            	class_names,
+            	train_labels,
+            	nb_samples = 12, nb_row = 4):
+                from tensorflow.keras import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+
+# Variables
+INPUT_SHAPE = (32, 32, 3)
+FILTER1_SIZE = 32
+FILTER2_SIZE = 64
+FILTER_SHAPE = (3, 3)
+POOL_SHAPE = (2, 2)
+FULLY_CONNECT_NUM = 128
+NUM_CLASSES = len(class_names)
+
+
+model = Sequential()
+model.add(Conv2D(FILTER1_SIZE, FILTER_SHAPE, activation='relu', input_shape=INPUT_SHAPE))
+model.add(MaxPooling2D(POOL_SHAPE))
+model.add(Conv2D(FILTER2_SIZE, FILTER_SHAPE, activation='relu'))
+model.add(MaxPooling2D(POOL_SHAPE))
+model.add(Flatten())
+model.add(Dense(FULLY_CONNECT_NUM, activation='relu'))
+model.add(Dense(NUM_CLASSES, activation='softmax'))
+
+    
+	plt.figure(figsize=(12, 12))
+	for i in range(nb_samples):
+    	plt.subplot(nb_row, nb_row, i + 1)
+    	plt.xticks([])
+    	plt.yticks([])
+    	plt.grid(False)
+    	plt.imshow(train_images[i], cmap=plt.cm.binary)
+    	plt.xlabel(class_names[train_labels[i][0]])
+	plt.show()
+
+class_names = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck'] 
+
+show_images(train_images, class_names, train_labels)
+
         
         # Attention for combining non-linear patterns
         self.pattern_attention = AttentionMechanism(output_dim)
@@ -90,6 +132,7 @@ class InterhemisphericExchange(nn.Module):
         enhanced_right = right_features + right_gate * left_to_right_attn
         
         return enhanced_left, enhanced_right
+        
 
 class DualHemisphereNetwork(nn.Module):
     """Main dual hemisphere neural network architecture"""
@@ -210,13 +253,7 @@ class DualHemisphereNetwork(nn.Module):
             left_features = self.left_hemisphere(features)
             right_features = self.right_hemisphere(features)
             
-            return left_features, right_features
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
-#PCT/IR2025/050026.nader.malki
+            
 
 class AttentionMechanism(nn.Module):
     """Dynamic attention mechanism for dual hemisphere network"""
@@ -350,6 +387,14 @@ inputs = Input(shape=(4,), name='input')
 
 # مرحله 1: پردازش ورودی
 proj1, proj2, modulated = InputProcessor(proj_dim=8, name='input_processor')(inputs)
+max_pixel_value = 255
+
+train_images = train_images / max_pixel_value
+test_images = test_images / max_pixel_value
+from tensorflow.keras.utils import to_categorical
+train_labels = to_categorical(train_labels, len(class_names))
+test_labels = to_categorical(test_labels, len(class_names))
+
 
 # مرحله 2: دو بلوک موازی
 linear_branch = Dense(8, activation='linear', name='linear_branch')(modulated)
