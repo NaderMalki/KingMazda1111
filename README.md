@@ -1,9 +1,10 @@
+#PCT/IR2025/050026,Nader.maleki.al@gmail.c#om 
 Payton 
 Import 
 Numpy 
 Pandas
 Jupiter Notebook 
-#PCT/IR2025/050026.nader.malki
+(x_train, y_train), (x_test, y_test) = keras.datasets.cifar10.load_data()
 class HyperbolicBlock(Layer):
     def init(self, units=8, kwargs):
         super(HyperbolicBlock, self).__init__(kwargs)
