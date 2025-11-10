@@ -256,7 +256,24 @@ class DualHemisphereNetwork(nn.Module):
         
         # فیوژن نهایی
         fused = linear_out + attended
-        return fused
+       
+	return fused
+	
+# 6. آموزش و تست
+# ----------------------------
+history = model.fit(
+    X_train, y_train,
+    validation_data=(X_test, y_test),
+    epochs=80,
+    batch_size=8,
+    verbose=1
+)
+		
+#ارزیابی مدل 
+test_loss, test_acc = model.evaluate(x_test, y_test)
+
+پیش بینی #
+predictions = model.predict(x_test)
 
 # ----------------------------
 # 5. مونتاژ مدل
