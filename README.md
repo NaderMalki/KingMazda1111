@@ -1,3 +1,40 @@
+DualHemisphereNetwork (اصلاح نام)
+#PCT/IR2025/050026
+class DualHemisphereNetwork(nn.Module):
+    def init(self, input_dim: int = 6, hidden_dim: int = 128, output_dim: int = 2):
+        super().__init__()
+import torch
+import torch.nn as nn
+# تابع کمکی دیباگ (اصلاح‌شده برای مدیریت تنسورهای بزرگ/کوچک)
+def debug_print(label, value=None):
+    """تابع استاندارد دیباگ"""
+    if value is not None:
+        if isinstance(value, torch.Tensor):
+            if value.numel() > 10:
+                # برای تنسورهای بزرگ: آمار
+                debug_line = f"[DEBUG] {label}: shape={value.shape}, dtype={value.dtype}, device={value.device}, "
+                debug_line += f"mean={value.mean().item():.4f}, std={value.std().item():.4f}"
+            else:
+                # برای تنسورهای کوچک: مقادیر کامل
+                numpy_val = value.detach().cpu().numpy() if value.requires_grad else value.cpu().numpy()
+                debug_line = f"[DEBUG] {label}: {numpy_val}"
+        else:
+            debug_line = f"[DEBUG] {label}: {value}"
+    else:
+        debug_line = f"[DEBUG] === {label} ==="
+    print(debug_line)
+	
+def test_Bihemispheric neuromorphic_network_debug(batch_size=32, input_dim=784, hidden_dim=256, output_dim=10):
+    torch.manual_seed(42)
+    model =Bihemispheric neuromorphic_Network(input_dim, hidden_dim, output_dim)
+    count_parameters(model)
+    x = torch.randn(batch_size, input_dim)
+    with torch.no_grad():
+        output, left_out, right_out, bridged, attended, modulated, domino = model(x)
+        print("Output shape:", output.shape)
+        print("Sample output values:", output[0])
+        print("Output range:", output.min().item(), "to", output.max().item())
+
 #PCT/IR2025/050026,Nader.maleki.al@gmail.c#om 
 Payton 
 Import 
