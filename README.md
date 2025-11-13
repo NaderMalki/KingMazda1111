@@ -1,3 +1,50 @@
+
+project_root/
+│
+├── models/                # معماری‌های مختلف شبکه
+│   ├── text_model.py      # Transformer برای متن
+│   ├── speech_rnn.py      # RNN/LSTM برای صوت
+│   ├── cnn_model.py       # CNN برای تصویر (مثلاً CIFAR-10)
+│   ├── pointnet.py        # PointNet برای داده‌های سه‌بعدی
+│   └── __init__.py        # امکان import آسان
+│
+├── datasets/              # مدیریت داده‌ها
+│   ├── loaders.py         # توابع بارگذاری داده (MNIST, CIFAR, Speech, PointCloud)
+│   └── transforms.py      # پیش‌پردازش و تبدیل داده‌ها
+│
+├── training/              # آموزش و ارزیابی
+│   ├── train.py           # حلقه‌ی آموزش عمومی
+│   ├── eval.py            # ارزیابی مدل‌ها
+│   ├── utils.py           # توابع کمکی (count_parameters, plot_curves)
+│   └── metrics.py         # محاسبه‌ی accuracy, confusion matrix
+│
+├── experiments/           # تست‌ها و آزمایش‌ها
+│   ├── exp_text.py        # اجرای مدل متن
+│   ├── exp_speech.py      # اجرای مدل صوت
+│   ├── exp_cnn.py         # اجرای مدل تصویر
+│   ├── exp_pointnet.py    # اجرای مدل سه‌بعدی
+│   └── results/           # ذخیره‌ی نمودارها و خروجی‌ها
+│
+├── api/                   # آماده‌سازی برای اپلیکیشن عمومی
+│   ├── server.py          # Flask/FastAPI برای سرویس‌دهی مدل‌ها
+│   └── routes.py          # تعریف endpointها (مثلاً /predict_text, /predict_image)
+│
+├── docs/                  # مستندات پروژه
+│   ├── architecture.md    # توضیح معماری‌ها
+│   ├── usage.md           # راهنمای اجرا
+│   └── roadmap.md         # نقشه‌ی توسعه آینده
+│
+├── tests/                 # تست‌های واحد
+│   ├── test_models.py     # تست خروجی مدل‌ها
+│   ├── test_datasets.py   # تست بارگذاری داده‌ها
+│   └── test_api.py        # تست سرویس API
+│
+├── requirements.txt       # لیست کتابخانه‌های مورد نیاز
+├── README.md              # توضیح کلی پروژه
+└── LICENSE                # مجوز و مالکیت
+
+
+
 DualHemisphereNetwork (اصلاح نام)
 #PCT/IR2025/050026
 class DualHemisphereNetwork(nn.Module):
